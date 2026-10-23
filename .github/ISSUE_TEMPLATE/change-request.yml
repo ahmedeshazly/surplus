@@ -1,0 +1,27 @@
+name: Cross-owner change request
+description: Ask the owner of a path to change something (never edit another role's files yourself)
+title: "[change-request] "
+labels: ["change-request"]
+body:
+  - type: input
+    id: owner
+    attributes:
+      label: Owner role (R1 to R6)
+    validations:
+      required: true
+  - type: input
+    id: paths
+    attributes:
+      label: Paths affected
+    validations:
+      required: true
+  - type: textarea
+    id: why
+    attributes:
+      label: What you need and why
+    validations:
+      required: true
+  - type: input
+    id: needed-by
+    attributes:
+      label: Needed by (Africa/Cairo date and time)

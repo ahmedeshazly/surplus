@@ -1,0 +1,71 @@
+{
+  "_comment": "Path ownership per role (AGENT_CONTEXT.md Section 8). Globs: ** any depth, * within a segment. A PR from branch <role>/... may only change files its role owns or files listed in shared. Add the label ownership-approved when the owner has approved a cross-owner change.",
+  "shared": ["docs/decisions.md", "**/package.json", "pnpm-lock.yaml"],
+  "roles": {
+    "r1": {
+      "include": [
+        "LICENSE",
+        "package.json",
+        "pnpm-workspace.yaml",
+        "pnpm-lock.yaml",
+        "render.yaml",
+        "docker-compose.yml",
+        "Dockerfile",
+        ".dockerignore",
+        ".env.example",
+        ".gitignore",
+        ".gitattributes",
+        ".gitleaks.toml",
+        ".editorconfig",
+        ".npmrc",
+        ".nvmrc",
+        ".prettierrc.json",
+        ".prettierignore",
+        "eslint.config.mjs",
+        "tsconfig.json",
+        "tsconfig.base.json",
+        ".github/**",
+        "AGENT_CONTEXT.md",
+        "AGENTS.md",
+        "CLAUDE.md",
+        ".cursorrules",
+        "scripts/**",
+        "apps/api/tsconfig.json",
+        "apps/api/src/server.ts",
+        "apps/api/src/routes/**",
+        "packages/paypal/tsconfig.json",
+        "packages/paypal/src/index.ts",
+        "packages/paypal/src/client/**",
+        "packages/paypal/src/scripts/**",
+        "packages/paypal/src/spikes/s1_search.ts",
+        "packages/paypal/src/spikes/s4_webhook.ts"
+      ],
+      "exclude": ["scripts/seed.ts", "apps/api/src/routes/demoCheckout.ts"]
+    },
+    "r2": {
+      "include": [
+        "packages/paypal/src/index.ts",
+        "packages/paypal/src/sources/**",
+        "packages/paypal/src/spikes/s2_seed.ts",
+        "fixtures/**",
+        "scripts/seed.ts",
+        "apps/web/src/app/pay-merchant/**",
+        "apps/api/src/routes/demoCheckout.ts"
+      ]
+    },
+    "r3": {
+      "include": ["packages/contracts/**", "packages/engine/**"]
+    },
+    "r4": {
+      "include": ["apps/api/src/agent/**"]
+    },
+    "r5": {
+      "include": ["apps/web/**", "docs/wireframes.md"],
+      "exclude": ["apps/web/src/app/pay-merchant/**"]
+    },
+    "r6": {
+      "include": ["README.md", "docs/**", "tests/**"],
+      "exclude": ["docs/wireframes.md"]
+    }
+  }
+}
