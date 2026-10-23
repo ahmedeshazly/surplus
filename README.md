@@ -6,7 +6,7 @@ Explainable treasury runway and idle-cash allocation advisor for PayPal-paid fre
 
 ## Quickstart
 
-Requirements: Node 20.12+ and pnpm 9 (`corepack enable`).
+Requirements: Node 20.19+ and pnpm 9 (`corepack enable`).
 
 ```bash
 cp .env.example .env     # fill in Sandbox credentials from the team vault
