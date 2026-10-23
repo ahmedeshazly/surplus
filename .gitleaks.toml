@@ -1,0 +1,10 @@
+title = "Surplus gitleaks config"
+
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Placeholder values only"
+paths = [
+  '''\.env\.example$''',
+]

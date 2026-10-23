@@ -1,0 +1,5 @@
+# Surplus agent rules
+
+Read AGENT_CONTEXT.md fully before doing any task.
+
+Ask which role (R1 to R6) your human is if it is not stated, and only edit files that role owns (.github/ownership.json). Do not push to main. One task = one branch = one PR.

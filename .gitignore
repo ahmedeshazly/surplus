@@ -1,0 +1,26 @@
+node_modules/
+.pnpm-store/
+dist/
+coverage/
+.next/
+out/
+next-env.d.ts
+*.tsbuildinfo
+
+# secrets and local state
+.env
+.env.*
+!.env.example
+*.pem
+
+# local database
+*.db
+*.db-shm
+*.db-wal
+
+# editor / OS
+.DS_Store
+.vscode/*
+!.vscode/extensions.json
+.idea/
+*.log

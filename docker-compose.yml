@@ -1,0 +1,11 @@
+# Owner: R1. Usage: cp .env.example .env && docker compose up --build
+services:
+  surplus:
+    build: .
+    ports:
+      - "3000:3000"
+      - "4000:4000"
+    env_file:
+      - .env
+    environment:
+      HOST: 0.0.0.0
