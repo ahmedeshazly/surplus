@@ -20,7 +20,7 @@ const port = Number(process.env["PORT"] ?? 4000);
 
 const hub = new SseHub();
 const store = new InMemoryWebhookStore();
-await seedOnBoot(store, exampleDatasetLoader);
+seedOnBoot(store);
 
 const clientId = process.env["PAYPAL_CLIENT_ID"];
 const clientSecret = process.env["PAYPAL_CLIENT_SECRET"];
@@ -49,7 +49,7 @@ const app = buildApp({
   admin: {
     token: adminResetToken,
     reset: async () => {
-      await seedOnBoot(store, exampleDatasetLoader);
+      seedOnBoot(store);
     },
   },
 });

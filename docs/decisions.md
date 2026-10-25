@@ -287,3 +287,10 @@ Residual risks accepted for the demo:
 Requests to other owners:
 - R5: apps/web now runs Next 15 + React 19. Use React 19 types; do not pin back. next/image is patched in 15.5.28.
 - R3: consider zod 4.6.6+ after the hackathon to close the remaining advisory; the request schemas are R3-owned.
+### 2026-10-25 H-2 follow-up: live seed correctness (R1)
+
+- Found during the audit: C-12's seed adapter copied the fixture dataset into live_sandbox, so a fresh API could show a fake transaction and fixture balance for the live merchant before any real payment.
+- seedOnBoot now seeds live_sandbox with EMPTY_LIVE_DATASET (zero transactions, zero balance, PAYPAL_REPORTING balance source is NOT claimed; the value is LIVE_WEBHOOK_ADJUSTED). Fixture personas keep using the example loader.
+- Admin reset restores the same empty live state and clears applied event ids.
+- Tests: seed.test.ts asserts an empty live start and idempotent reset; an app test serves summary, surplus and plan for an empty live merchant. 48 API tests pass.
+- TODO(R2): replace EMPTY_LIVE_DATASET with the real PayPal reporting balance snapshot when getMerchantDataset lands.
