@@ -1,14 +1,25 @@
+<<<<<<< HEAD
 ﻿/**
  * Owner: R1. Task K-3: Sandbox OAuth client-credentials token check.
  *
  * Prints ONLY success/failure and token expiry ΓÇô never the token itself.
+=======
+/**
+ * Owner: R1. Task K-3: Sandbox OAuth client-credentials token check.
+ *
+ * Prints ONLY success/failure and token expiry – never the token itself.
+>>>>>>> origin/r1/k-3-sandbox-setup
  * Usage: pnpm --filter @surplus/paypal test:token
  */
 
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 
+<<<<<<< HEAD
 // Load .env from repo root (optional ΓÇô CI can skip)
+=======
+// Load .env from repo root (optional – CI can skip)
+>>>>>>> origin/r1/k-3-sandbox-setup
 try {
   const envPath = resolve(
     new URL("../../../../.env", import.meta.url).pathname.slice(
@@ -60,7 +71,11 @@ try {
   });
 } catch (err) {
   const msg = err instanceof Error ? err.message : String(err);
+<<<<<<< HEAD
   console.error(`FAIL: Network error contacting ${apiBase} ΓÇô ${msg}`);
+=======
+  console.error(`FAIL: Network error contacting ${apiBase} – ${msg}`);
+>>>>>>> origin/r1/k-3-sandbox-setup
   process.exit(1);
 }
 
@@ -74,7 +89,11 @@ if (!res.ok) {
     detail = await res.text().catch(() => "");
   }
   console.error(
+<<<<<<< HEAD
     `FAIL: PayPal responded ${res.status} ${res.statusText}${detail ? ` ΓÇô ${detail}` : ""}`,
+=======
+    `FAIL: PayPal responded ${res.status} ${res.statusText}${detail ? ` – ${detail}` : ""}`,
+>>>>>>> origin/r1/k-3-sandbox-setup
   );
   process.exit(1);
 }
