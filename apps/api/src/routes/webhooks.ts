@@ -9,18 +9,9 @@
 // Any failure before step 4 performs zero writes.
 import type { Request, Response } from "express";
 import type { AppEvent, MerchantId } from "@surplus/contracts";
-import {
-  computeAllocationPlan,
-  computeCashFlowSummary,
-  computeSurplus,
-} from "@surplus/engine";
+import { computeAllocationPlan, computeCashFlowSummary, computeSurplus } from "@surplus/engine";
 import type { SseHub } from "./sseHub";
-import {
-  EMPTY_DISPUTES,
-  hashPayerRef,
-  normalizeCapture,
-  normalizeRefund,
-} from "./webhookStore";
+import { EMPTY_DISPUTES, hashPayerRef, normalizeCapture, normalizeRefund } from "./webhookStore";
 import type { InMemoryWebhookStore } from "./webhookStore";
 
 /** Every live capture belongs to the single demo merchant. */
@@ -44,10 +35,7 @@ export interface WebhookDeps {
 export type WebhookHandler = (req: Request, res: Response) => Promise<void>;
 
 const SUPPORTED_CAPTURE = "PAYMENT.CAPTURE.COMPLETED";
-const SUPPORTED_REFUNDS = new Set([
-  "PAYMENT.CAPTURE.REFUNDED",
-  "PAYMENT.CAPTURE.REFUND",
-]);
+const SUPPORTED_REFUNDS = new Set(["PAYMENT.CAPTURE.REFUNDED", "PAYMENT.CAPTURE.REFUND"]);
 
 function asRecord(value: unknown): Record<string, unknown> | undefined {
   return typeof value === "object" && value !== null && !Array.isArray(value)

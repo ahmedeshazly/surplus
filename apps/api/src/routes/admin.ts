@@ -21,9 +21,7 @@ export interface AdminResetDeps {
 
 export type AdminResetHandler = (req: Request, res: Response) => Promise<void>;
 
-export function createAdminResetHandler(
-  deps: AdminResetDeps,
-): AdminResetHandler {
+export function createAdminResetHandler(deps: AdminResetDeps): AdminResetHandler {
   return async (req, res) => {
     const provided = req.get(ADMIN_RESET_HEADER);
     const configured = deps.token;

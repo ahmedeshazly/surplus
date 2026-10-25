@@ -6,3 +6,6 @@ pnpm-lock.yaml
 *.pdf
 AGENT_CONTEXT.md
 LICENSE
+
+# Append-only decision log; reflowing it causes cross-branch merge conflicts.
+docs/decisions.md

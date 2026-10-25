@@ -140,10 +140,7 @@ export class PaypalClient {
 
   /** Returns a valid Bearer token, refreshing early if within the margin. */
   async getAccessToken(): Promise<string> {
-    if (
-      this.cachedToken &&
-      Date.now() < this.tokenExpiresAt - TOKEN_REFRESH_MARGIN_MS
-    ) {
+    if (this.cachedToken && Date.now() < this.tokenExpiresAt - TOKEN_REFRESH_MARGIN_MS) {
       return this.cachedToken;
     }
 
@@ -161,9 +158,7 @@ export class PaypalClient {
 
   async #fetchNewToken(): Promise<string> {
     // Build Basic auth – never log or include in errors
-    const creds = Buffer.from(
-      `${this.clientId}:${this.clientSecret}`,
-    ).toString("base64");
+    const creds = Buffer.from(`${this.clientId}:${this.clientSecret}`).toString("base64");
 
     let res: Response;
     try {
@@ -183,11 +178,7 @@ export class PaypalClient {
     }
 
     if (!res.ok) {
-      throw new PayPalError(
-        "OAUTH_FAILED",
-        `OAuth returned HTTP ${res.status}`,
-        res.status,
-      );
+      throw new PayPalError("OAUTH_FAILED", `OAuth returned HTTP ${res.status}`, res.status);
     }
 
     let data: PayPalTokenResponse;
@@ -250,20 +241,12 @@ export class PaypalClient {
       }
 
       if (isRetryable(res.status)) {
-        lastError = new PayPalError(
-          "HTTP_ERROR",
-          `HTTP ${res.status} from ${path}`,
-          res.status,
-        );
+        lastError = new PayPalError("HTTP_ERROR", `HTTP ${res.status} from ${path}`, res.status);
         continue; // retry
       }
 
       // Non-retryable 4xx (excluding 429 caught above)
-      throw new PayPalError(
-        "HTTP_ERROR",
-        `HTTP ${res.status} from ${path}`,
-        res.status,
-      );
+      throw new PayPalError("HTTP_ERROR", `HTTP ${res.status} from ${path}`, res.status);
     }
 
     throw (
@@ -307,7 +290,7 @@ export class PaypalClient {
     if (diffDays > MAX_WINDOW_DAYS) {
       throw new PayPalError(
         "WINDOW_TOO_LARGE",
-        `searchTransactions window is ${diffDays.toFixed(1)} days; maximum is ${MAX_WINDOW_DAYS} days (FACT-01).`,
+        `searchTransactions window is ${Math.ceil(diffDays)} days; maximum is ${MAX_WINDOW_DAYS} days (FACT-01).`,
       );
     }
 
@@ -319,9 +302,7 @@ export class PaypalClient {
       fields: "all",
     });
 
-    return this.#fetch<PayPalTransactionSearchResponse>(
-      `/v1/reporting/transactions?${params}`,
-    );
+    return this.#fetch<PayPalTransactionSearchResponse>(`/v1/reporting/transactions?${params}`);
   }
 
   // ──────────────────────────────────────────────────────────────────────────
@@ -338,15 +319,12 @@ export class PaypalClient {
     const time = asOf ?? new Date().toISOString().replace(/\.\d{3}Z$/, "Z");
     const params = new URLSearchParams({ as_of_time: time, currency_code: "USD" });
 
-    const data = await this.#fetch<PayPalBalancesResponse>(
-      `/v1/reporting/balances?${params}`,
-    );
+    const data = await this.#fetch<PayPalBalancesResponse>(`/v1/reporting/balances?${params}`);
 
     // Find the primary USD balance
     const usd = data.balances?.find(
       (b) =>
-        b.available_balance?.currency_code === "USD" ||
-        b.total_balance?.currency_code === "USD",
+        b.available_balance?.currency_code === "USD" || b.total_balance?.currency_code === "USD",
     );
 
     return {
@@ -392,9 +370,7 @@ export class PaypalClient {
           dispute_state: states,
           page_size: String(Math.min(pageSize, 50)),
         });
-        data = await this.#fetch<PayPalDisputesResponse>(
-          `/v1/customer/disputes?${params}`,
-        );
+        data = await this.#fetch<PayPalDisputesResponse>(`/v1/customer/disputes?${params}`);
       }
 
       for (const item of data.items ?? []) {
