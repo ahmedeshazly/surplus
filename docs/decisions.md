@@ -46,13 +46,13 @@ _None yet._
 
 ## R1 decisions and spike log
 
-### 2026-10-25 K-3 – Sandbox token check (R1)
+### 2026-10-25 K-3 - Sandbox token check (R1)
 
 Script: `packages/paypal/src/scripts/testToken.ts`.
 Prints OK/FAIL and expiry seconds only; never the token value.
 Awaiting human action: PayPal REST app creation and credential placement in `.env`.
 
-### 2026-10-25 S-1 – Transaction Search, Balances, Disputes spike (R1)
+### 2026-10-25 S-1 - Transaction Search, Balances, Disputes spike (R1)
 
 Script: `packages/paypal/src/spikes/s1_search.ts`.
 **Status: code complete, awaiting live run** (credentials not yet in `.env`).
@@ -71,14 +71,14 @@ Expected response shapes (from PayPal API docs and K-2 research):
         transaction_amount: { currency_code: string, value: string },
         fee_amount: { currency_code: string, value: string } | undefined,
         transaction_status: string,
-        // FREE TEXT – stripped: transaction_subject, transaction_note, custom_field
+        // FREE TEXT - stripped: transaction_subject, transaction_note, custom_field
       },
       payer_info: {
         account_id: string,
-        email_address: string,   // PII – normalizer hashes this
-        // FREE TEXT – stripped: payer_name.given_name, payer_name.surname
+        email_address: string,   // PII - normalizer hashes this
+        // FREE TEXT - stripped: payer_name.given_name, payer_name.surname
       },
-      cart_info: { item_details: [...] }  // item_name is FREE TEXT – stripped
+      cart_info: { item_details: [...] }  // item_name is FREE TEXT - stripped
     }
   ],
   page: number,
@@ -126,22 +126,22 @@ Decision: free text fields (`transaction_subject`, `transaction_note`, `custom_f
 `payer_name`, `messages`) are stripped in the client layer (types.ts does not include
 them) and again in R2's normalizer (defense in depth).
 
-### 2026-10-25 S-4 – Webhook spike (R1)
+### 2026-10-25 S-4 - Webhook spike (R1)
 
 Script: `packages/paypal/src/spikes/s4_webhook.ts`.
 **Status: code complete, awaiting live run** (ngrok tunnel + PAYPAL_WEBHOOK_ID needed).
 
 Expected verification flow:
-1. POST /webhook → collect raw body (no prior parse).
+1. POST /webhook -> collect raw body (no prior parse).
 2. Extract headers: PAYPAL-TRANSMISSION-ID, PAYPAL-TRANSMISSION-TIME,
    PAYPAL-CERT-URL, PAYPAL-TRANSMISSION-SIG, PAYPAL-AUTH-ALGO.
 3. POST /v1/notifications/verify-webhook-signature with those headers +
    webhook_id (PAYPAL_WEBHOOK_ID) + parsed event body.
-4. verification_status === "SUCCESS" → accept; anything else → 400, zero DB write.
+4. verification_status === "SUCCESS" -> accept; anything else -> 400, zero DB write.
 
 `verification_status: "SUCCESS"` will be recorded here once the live run completes.
 
-### 2026-10-25 F-1 – PaypalClient decisions (R1)
+### 2026-10-25 F-1 - PaypalClient decisions (R1)
 
 **Framework choice:** Pure Node 20 built-in `fetch` + `node:crypto`. No extra HTTP
 libraries. Reason: project rules prefer built-ins; Node 20 fetch is production-stable.
@@ -170,7 +170,7 @@ R2's normalizer applies a second strip as defense in depth.
 **Dispute fields returned:** `disputeId`, `status`, `disputeAmount` (currency + value),
 `createTime` only. All other fields including `messages`, `dispute_note` are absent.
 
-### 2026-10-25 F-9 – API routes decisions (R1)
+### 2026-10-25 F-9 - API routes decisions (R1)
 
 Framework: **Express** (see F-1 decision above).
 
@@ -191,7 +191,7 @@ Framework: **Express** (see F-1 decision above).
 - R3: confirm that the local thin Zod wrappers for query params
   (`merchantIdSchema`, `scenarioInputSchema`) do not need to live in `@surplus/contracts`.
 
-### 2026-10-25 C-5 – Webhooks + SSE decisions (R1)
+### 2026-10-25 C-5 - Webhooks + SSE decisions (R1)
 
 **SQLite persistence on Render (C-12):** Default strategy is reseed on every boot
 (no Render persistent disk, which costs $7/month). On restart, `webhook_events` rows
@@ -199,7 +199,7 @@ from live payments are lost. The live demo survives because judges do a fresh pa
 after each demo. If needed for the video, R1 can add the `persistentDisk` section to
 `render.yaml` (a human-only paid action, listed in the checklist).
 
-### 2026-10-25 H-2 – Security audit notes (R1, to be completed Nov 5–9)
+### 2026-10-25 H-2 - Security audit notes (R1, to be completed Nov 5-9)
 
 Findings to audit: secrets in git history (gitleaks), CORS origin lockdown,
 admin reset endpoint constant-time compare, webhook signature verification before
