@@ -26,8 +26,7 @@ const clientId = process.env["PAYPAL_CLIENT_ID"];
 const clientSecret = process.env["PAYPAL_CLIENT_SECRET"];
 const webhookId = process.env["PAYPAL_WEBHOOK_ID"];
 const adminResetToken = process.env["ADMIN_RESET_TOKEN"] ?? "";
-const apiBase =
-  process.env["PAYPAL_API_BASE"] ?? "https://api-m.sandbox.paypal.com";
+const apiBase = process.env["PAYPAL_API_BASE"] ?? "https://api-m.sandbox.paypal.com";
 
 const client =
   clientId !== undefined && clientSecret !== undefined
@@ -35,15 +34,13 @@ const client =
     : undefined;
 
 const app = buildApp({
-  loadDataset: (merchantId) =>
-    store.getDataset(merchantId) ?? exampleDatasetLoader(merchantId),
+  loadDataset: (merchantId) => store.getDataset(merchantId) ?? exampleDatasetLoader(merchantId),
   sseHub: hub,
   webhook:
     client !== undefined && webhookId !== undefined
       ? {
           store,
-          verify: (headers, rawBody) =>
-            client.verifyWebhookSignature(headers, rawBody, webhookId),
+          verify: (headers, rawBody) => client.verifyWebhookSignature(headers, rawBody, webhookId),
         }
       : undefined,
   admin: {

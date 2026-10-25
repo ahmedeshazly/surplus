@@ -22,9 +22,7 @@ describe("POST /api/admin/reset", () => {
 
   it("returns 401 for a wrong token of the same length", async () => {
     const { app, reset } = appWith("s3cret");
-    const res = await request(app)
-      .post("/api/admin/reset")
-      .set(ADMIN_RESET_HEADER, "s3cres");
+    const res = await request(app).post("/api/admin/reset").set(ADMIN_RESET_HEADER, "s3cres");
     expect(res.status).toBe(401);
     expect(reset).not.toHaveBeenCalled();
   });
@@ -40,9 +38,7 @@ describe("POST /api/admin/reset", () => {
 
   it("reseeds and returns 200 for the correct token", async () => {
     const { app, reset } = appWith("s3cret");
-    const res = await request(app)
-      .post("/api/admin/reset")
-      .set(ADMIN_RESET_HEADER, "s3cret");
+    const res = await request(app).post("/api/admin/reset").set(ADMIN_RESET_HEADER, "s3cret");
     expect(res.status).toBe(200);
     expect(res.body.status).toBe("reset");
     expect(reset).toHaveBeenCalledTimes(1);
@@ -50,9 +46,7 @@ describe("POST /api/admin/reset", () => {
 
   it("does not mount the route when no token is configured", async () => {
     const { app, reset } = appWith("");
-    const res = await request(app)
-      .post("/api/admin/reset")
-      .set(ADMIN_RESET_HEADER, "");
+    const res = await request(app).post("/api/admin/reset").set(ADMIN_RESET_HEADER, "");
     expect(res.status).toBe(404);
     expect(reset).not.toHaveBeenCalled();
   });

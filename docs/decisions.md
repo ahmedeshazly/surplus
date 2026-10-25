@@ -1,4 +1,4 @@
-﻿# Decisions and spike log
+# Decisions and spike log
 
 R6 owns this file. Every member appends their own section (do not rewrite other sections).
 Format for each entry: date (Africa/Cairo), task id, author role, what was decided or found.
@@ -36,15 +36,15 @@ _Pending._
 
 ## Engine decisions (R3)
 
-All entries below are Oct 24â€“25, 2026 (Africa/Cairo), R3, tasks K-4 / F-6 / F-7 / F-8 / H-7. Contracts v1.0 (`packages/contracts`) is frozen for the demo path: changing any type/field there after Gate 0 requires a synchronous engine + advisor update (append an addendum here first).
+All entries below are Oct 24-25, 2026 (Africa/Cairo), R3, tasks K-4 / F-6 / F-7 / F-8 / H-7. Contracts v1.0 (`packages/contracts`) is frozen for the demo path: changing any type/field there after Gate 0 requires a synchronous engine + advisor update (append an addendum here first).
 
 **Calendar and windows (F-6).** All calendar math is UTC-only; "completed months" are UTC month buckets strictly before the month that contains `asOf`, and the in-progress month never enters the monthly model â€” its rows only move the available balance (append-only demo arithmetic). Window totals (week/month/year) are trailing half-open `[asOf âˆ’ 7/30/365 days, asOf)`: boundaries inclusive at start, exclusive at `asOf`. The 90-day refund-rate window is anchored to the start of the current month (`[currentMonthStart âˆ’ 90d, currentMonthStart)`), NOT to `asOf`, so a live payment during the in-progress month cannot distort the rate retroactively. The monthly series is the contiguous zero-filled span from the earliest to the latest month **with completed transactions** (inter-blank months are true zeros; a month with no data past that point cannot dilute the baseline with fabricated months).
 
 **Aggregation rules.** `grossIncomeCents` = Î£ `grossCents` of `kind=income`; `feesCents` = Î£ `feeCents` of ALL completed rows (not only income); `refundsCents`/`chargebacksCents` = Î£ `grossCents` by kind; `withdrawalsCents` is tracked but never subtracted from the monthly net: `netCents = grossIncome âˆ’ fees âˆ’ refunds âˆ’ chargebacks`. `transactionCount` counts aggregated COMPLETED USD rows; PENDING/REVERSED rows and non-USD rows are excluded (contracts lock rows to USD anyway â€” the loader normalizes upstream).
 
-**Volatility (cv, buffer).** cv = `round4(sampleStdDev / max(mean, baseline))` over the net series; M < 3 â†’ cv exactly 0; mean â‰¤ 0 or baseline â‰¤ 0 â†’ cv exactly 1 (guard, not error). `bufferMonths = round2(clamp(3 + 6Ã—cv, 3, 9))`; `bufferTargetCents = round(bufferMonths Ã— monthlyObligationsCents)`. cv > 1.0 is possible for tiny samples with outliers (std/mean of 3 points) â€” the 9-month clamp contains it; cv is asserted finite, in [0, âˆž).
+**Volatility (cv, buffer).** cv = `round4(sampleStdDev / max(mean, baseline))` over the net series; M < 3 -> cv exactly 0; mean â‰¤ 0 or baseline â‰¤ 0 -> cv exactly 1 (guard, not error). `bufferMonths = round2(clamp(3 + 6Ã—cv, 3, 9))`; `bufferTargetCents = round(bufferMonths Ã— monthlyObligationsCents)`. cv > 1.0 is possible for tiny samples with outliers (std/mean of 3 points) â€” the 9-month clamp contains it; cv is asserted finite, in [0, âˆž).
 
-**Degraded gates (F-7), in fixed order:** M < 3 â†’ `INSUFFICIENT_DATA` (cv 0, buffer 9.00, target round(9Ã—obligations), safe 0) â†’ obligations â‰¤ 0 â†’ `OBLIGATIONS_REQUIRED` (stats normal, bufferTarget 0, safe 0) â†’ mean â‰¤ 0 or baseline â‰¤ 0 â†’ `NEGATIVE_CASH_FLOW` (cv 1, buffer 9, target round(9Ã—obligations), safe 0). Every status still emits the canonical 10 breakdown lines and a per-profile staging schedule (zeros when safe = 0); `stagingTrancheCount` stays 6/4/3 per profile even in degraded states.
+**Degraded gates (F-7), in fixed order:** M < 3 -> `INSUFFICIENT_DATA` (cv 0, buffer 9.00, target round(9Ã—obligations), safe 0) -> obligations â‰¤ 0 -> `OBLIGATIONS_REQUIRED` (stats normal, bufferTarget 0, safe 0) -> mean â‰¤ 0 or baseline â‰¤ 0 -> `NEGATIVE_CASH_FLOW` (cv 1, buffer 9, target round(9Ã—obligations), safe 0). Every status still emits the canonical 10 breakdown lines and a per-profile staging schedule (zeros when safe = 0); `stagingTrancheCount` stays 6/4/3 per profile even in degraded states.
 
 **Obligations resolution.** A supplied value wins (`USER_INPUT`). Otherwise `TRAILING_3M_WITHDRAWAL_AVG` = `round(Î£ withdrawal grossCents across the last 3 series buckets Ã· 3)`; a zero default then triggers `OBLIGATIONS_REQUIRED` downstream instead of silently staging everything.
 
@@ -52,11 +52,11 @@ All entries below are Oct 24â€“25, 2026 (Africa/Cairo), R3, tasks K-4 / F-6
 
 **Staging (executeAfterDays rule).** Tranche count N = 6 (CONSERVATIVE) / 4 (BALANCED) / 3 (GROWTH). `base = floor(safe / N)` per tranche, remainder `safe âˆ’ baseÃ—N` added to tranche 1 only (exact integer sum, tranche 1 â‰¥ the others). `executeAfterDays = (trancheNumber âˆ’ 1) Ã— 30` (monthly ladder, first tranche immediate).
 
-**Bands and the CV shift (F-8).** Base midpoints: CONSERVATIVE 50/35/15, BALANCED 30/30/40, GROWTH 15/20/65 (cash/bonds/equity). The shift applies when cv is **strictly greater** than 0.60 (cv = 0.6000 â†’ no shift; 0.6001 â†’ shift): cash min/max/target each +10 pts, equity target âˆ’10 (clamped at â‰¥ 0), bonds untouched; reasonCode `HIGH_VOLATILITY_CV_SHIFT` on cash and equity only, base codes elsewhere. Cents: bonds and equity get `round(pct Ã— safe)`; CASH_MMF absorbs the remainder (`safe âˆ’ bonds âˆ’ equity`) â€” it is the mathematically chosen remainder-bearer because its exact float product can under-represent it; proved exact sum and cash â‰¥ 0.
+**Bands and the CV shift (F-8).** Base midpoints: CONSERVATIVE 50/35/15, BALANCED 30/30/40, GROWTH 15/20/65 (cash/bonds/equity). The shift applies when cv is **strictly greater** than 0.60 (cv = 0.6000 -> no shift; 0.6001 -> shift): cash min/max/target each +10 pts, equity target âˆ’10 (clamped at â‰¥ 0), bonds untouched; reasonCode `HIGH_VOLATILITY_CV_SHIFT` on cash and equity only, base codes elsewhere. Cents: bonds and equity get `round(pct Ã— safe)`; CASH_MMF absorbs the remainder (`safe âˆ’ bonds âˆ’ equity`) â€” it is the mathematically chosen remainder-bearer because its exact float product can under-represent it; proved exact sum and cash â‰¥ 0.
 
 **Scenarios (F-8).** `incomeShockPct` scales ONLY `kind=income`, `status=COMPLETED` rows, with per-row `round(k Ã— gross)` and `round(k Ã— fee)` and net recomputed (`k = 1 + shock/100`); refunds, chargebacks, withdrawals and the dispute set are untouched. `stressedAvailable = max(0, available âˆ’ delayedPayment âˆ’ oneOffExpense)`. The stressed case re-runs the FULL chain (cv, buffer, rate, reserve, staging, bands) at the same `asOf`; consistency: merchantId and riskProfile must equal the base's, and if the base supplies obligations, the scenario's must match. Deltas: `round2(stressed âˆ’ baseline)` for both safe and buffer.
 
-**Rounding conventions.** All money is non-negative integer cents; `round4` for ratios, `round2` for `bufferMonths`/`trendSlopeCentsPerMonth`. Math.round ties toward +infinity at the final round (âˆ’0.375 â†’ âˆ’0.37 tie behavior is irrelevant because money inputs are non-negative); âˆ’0 is normalized to plain 0 so serialized JSON never contains "-0". Even-sample medians average the middle pair and round to integer cents (contract locks `SafeInt`).
+**Rounding conventions.** All money is non-negative integer cents; `round4` for ratios, `round2` for `bufferMonths`/`trendSlopeCentsPerMonth`. Math.round ties toward +infinity at the final round (âˆ’0.375 -> âˆ’0.37 tie behavior is irrelevant because money inputs are non-negative); âˆ’0 is normalized to plain 0 so serialized JSON never contains "-0". Even-sample medians average the middle pair and round to integer cents (contract locks `SafeInt`).
 
 **Purity contract (lint-enforced).** `packages/engine` is forbidden `Date.now()`, zero-arg `new Date()`, `Math.random`, pseudorandom import, and any I/O/DB/LLM import. Every Date is derived from caller-passed ISO strings; the same input always produces deep-identical outputs (property-tested).
 
@@ -87,13 +87,13 @@ _None yet._
 ---
 
 ### R1 decisions and spike log (K-3, S-1, S-4, F-1, C-12, H-2 draft)
-### 2026-10-25 K-3 â€“ Sandbox token check (R1)
+### 2026-10-25 K-3 - Sandbox token check (R1)
 
 Script: `packages/paypal/src/scripts/testToken.ts`.
 Prints OK/FAIL and expiry seconds only; never the token value.
 Awaiting human action: PayPal REST app creation and credential placement in `.env`.
 
-### 2026-10-25 S-1 â€“ Transaction Search, Balances, Disputes spike (R1)
+### 2026-10-25 S-1 - Transaction Search, Balances, Disputes spike (R1)
 
 Script: `packages/paypal/src/spikes/s1_search.ts`.
 **Status: code complete, awaiting live run** (credentials not yet in `.env`).
@@ -112,14 +112,14 @@ Expected response shapes (from PayPal API docs and K-2 research):
         transaction_amount: { currency_code: string, value: string },
         fee_amount: { currency_code: string, value: string } | undefined,
         transaction_status: string,
-        // FREE TEXT â€“ stripped: transaction_subject, transaction_note, custom_field
+        // FREE TEXT - stripped: transaction_subject, transaction_note, custom_field
       },
       payer_info: {
         account_id: string,
-        email_address: string,   // PII â€“ normalizer hashes this
-        // FREE TEXT â€“ stripped: payer_name.given_name, payer_name.surname
+        email_address: string,   // PII - normalizer hashes this
+        // FREE TEXT - stripped: payer_name.given_name, payer_name.surname
       },
-      cart_info: { item_details: [...] }  // item_name is FREE TEXT â€“ stripped
+      cart_info: { item_details: [...] }  // item_name is FREE TEXT - stripped
     }
   ],
   page: number,
@@ -167,22 +167,22 @@ Decision: free text fields (`transaction_subject`, `transaction_note`, `custom_f
 `payer_name`, `messages`) are stripped in the client layer (types.ts does not include
 them) and again in R2's normalizer (defense in depth).
 
-### 2026-10-25 S-4 â€“ Webhook spike (R1)
+### 2026-10-25 S-4 - Webhook spike (R1)
 
 Script: `packages/paypal/src/spikes/s4_webhook.ts`.
 **Status: code complete, awaiting live run** (ngrok tunnel + PAYPAL_WEBHOOK_ID needed).
 
 Expected verification flow:
-1. POST /webhook â†’ collect raw body (no prior parse).
+1. POST /webhook -> collect raw body (no prior parse).
 2. Extract headers: PAYPAL-TRANSMISSION-ID, PAYPAL-TRANSMISSION-TIME,
    PAYPAL-CERT-URL, PAYPAL-TRANSMISSION-SIG, PAYPAL-AUTH-ALGO.
 3. POST /v1/notifications/verify-webhook-signature with those headers +
    webhook_id (PAYPAL_WEBHOOK_ID) + parsed event body.
-4. verification_status === "SUCCESS" â†’ accept; anything else â†’ 400, zero DB write.
+4. verification_status === "SUCCESS" -> accept; anything else -> 400, zero DB write.
 
 `verification_status: "SUCCESS"` will be recorded here once the live run completes.
 
-### 2026-10-25 F-1 â€“ PaypalClient decisions (R1)
+### 2026-10-25 F-1 - PaypalClient decisions (R1)
 
 **Framework choice:** Pure Node 20 built-in `fetch` + `node:crypto`. No extra HTTP
 libraries. Reason: project rules prefer built-ins; Node 20 fetch is production-stable.
@@ -211,7 +211,7 @@ R2's normalizer applies a second strip as defense in depth.
 **Dispute fields returned:** `disputeId`, `status`, `disputeAmount` (currency + value),
 `createTime` only. All other fields including `messages`, `dispute_note` are absent.
 
-### 2026-10-25 F-9 â€“ API routes decisions (R1)
+### 2026-10-25 F-9 - API routes decisions (R1)
 
 Framework: **Express** (see F-1 decision above).
 
@@ -232,7 +232,7 @@ Framework: **Express** (see F-1 decision above).
 - R3: confirm that the local thin Zod wrappers for query params
   (`merchantIdSchema`, `scenarioInputSchema`) do not need to live in `@surplus/contracts`.
 
-### 2026-10-25 C-5 â€“ Webhooks + SSE decisions (R1)
+### 2026-10-25 C-5 - Webhooks + SSE decisions (R1)
 
 **SQLite persistence on Render (C-12):** Default strategy is reseed on every boot
 (no Render persistent disk, which costs $7/month). On restart, `webhook_events` rows
@@ -240,7 +240,7 @@ from live payments are lost. The live demo survives because judges do a fresh pa
 after each demo. If needed for the video, R1 can add the `persistentDisk` section to
 `render.yaml` (a human-only paid action, listed in the checklist).
 
-### 2026-10-25 H-2 â€“ Security audit notes (R1, to be completed Nov 5â€“9)
+### 2026-10-25 H-2 - Security audit notes (R1, to be completed Nov 5-9)
 
 Findings to audit: secrets in git history (gitleaks), CORS origin lockdown,
 admin reset endpoint constant-time compare, webhook signature verification before

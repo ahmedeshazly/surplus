@@ -5,12 +5,7 @@
  */
 
 export type PayPalErrorCode =
-  | "OAUTH_FAILED"
-  | "WINDOW_TOO_LARGE"
-  | "HTTP_ERROR"
-  | "NETWORK_ERROR"
-  | "PARSE_ERROR"
-  | "TIMEOUT";
+  "OAUTH_FAILED" | "WINDOW_TOO_LARGE" | "HTTP_ERROR" | "NETWORK_ERROR" | "PARSE_ERROR" | "TIMEOUT";
 
 export class PayPalError extends Error {
   constructor(

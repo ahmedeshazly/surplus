@@ -109,10 +109,7 @@ export interface ApplyEventInput {
 export class InMemoryWebhookStore {
   readonly #merchants = new Map<MerchantId, MerchantState>();
 
-  seed(
-    merchantId: MerchantId,
-    dataset: MerchantDataset,
-  ): void {
+  seed(merchantId: MerchantId, dataset: MerchantDataset): void {
     this.#merchants.set(merchantId, {
       transactions: [...dataset.transactions],
       availableBalanceCents: dataset.availableBalanceCents,
@@ -137,8 +134,7 @@ export class InMemoryWebhookStore {
     if (state.eventIds.has(input.eventId)) return false;
     state.eventIds.add(input.eventId);
     state.transactions.push(input.transaction);
-    state.availableBalanceCents =
-      state.availableBalanceCents + input.deltaNetCents;
+    state.availableBalanceCents = state.availableBalanceCents + input.deltaNetCents;
     state.balanceSource = "LIVE_WEBHOOK_ADJUSTED";
     return true;
   }

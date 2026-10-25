@@ -1,10 +1,7 @@
 // Owner: R1. Task C-5: SSE hub unit tests with fake subscribers.
 import { describe, expect, it, vi } from "vitest";
 import type { AppEvent } from "@surplus/contracts";
-import {
-  DISCLAIMER_ID_V1,
-  DISCLAIMER_TEXT_V1,
-} from "@surplus/contracts";
+import { DISCLAIMER_ID_V1, DISCLAIMER_TEXT_V1 } from "@surplus/contracts";
 import {
   exampleAllocationPlan,
   exampleCashFlowSummary,
@@ -72,9 +69,7 @@ describe("SseHub", () => {
 
     expect(delivered).toBe(1);
     expect(live.chunks.some((chunk) => chunk.includes("id: evt-1"))).toBe(true);
-    expect(persona.chunks.some((chunk) => chunk.includes("id: evt-1"))).toBe(
-      false,
-    );
+    expect(persona.chunks.some((chunk) => chunk.includes("id: evt-1"))).toBe(false);
   });
 
   it("stops delivering after unsubscribe", () => {
@@ -126,9 +121,7 @@ describe("SseHub", () => {
       hub.subscribe(fake.subscriber);
       const stop = hub.startHeartbeat(1000);
       vi.advanceTimersByTime(2500);
-      const heartbeats = fake.chunks.filter(
-        (chunk) => chunk === ": heartbeat\n\n",
-      );
+      const heartbeats = fake.chunks.filter((chunk) => chunk === ": heartbeat\n\n");
       expect(heartbeats.length).toBeGreaterThanOrEqual(2);
       stop();
     } finally {
