@@ -41,3 +41,4 @@ _Pending: window boundaries, executeAfterDays rule, band min/max under the CV sh
 ## Open questions
 
 _None yet._
+- 2026-10-25T19:55:00+02:00 | K-3 | R1 | Merged sandbox oauth test:token script from origin/r1/k-3-sandbox-setup. All 6 members can run pnpm --filter @surplus/paypal test:token once creds in env.
