@@ -47,11 +47,7 @@ export interface BuildAppOptions {
   webOrigin?: string;
 }
 
-type AsyncHandler = (
-  req: Request,
-  res: Response,
-  next: NextFunction,
-) => Promise<void>;
+type AsyncHandler = (req: Request, res: Response, next: NextFunction) => Promise<void>;
 
 function handle(fn: AsyncHandler) {
   return (req: Request, res: Response, next: NextFunction): void => {

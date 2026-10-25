@@ -52,32 +52,23 @@ try {
 const clientId = process.env["PAYPAL_CLIENT_ID"] ?? "";
 const clientSecret = process.env["PAYPAL_CLIENT_SECRET"] ?? "";
 const webhookId = process.env["PAYPAL_WEBHOOK_ID"] ?? "";
-const apiBase =
-  process.env["PAYPAL_API_BASE"] ?? "https://api-m.sandbox.paypal.com";
+const apiBase = process.env["PAYPAL_API_BASE"] ?? "https://api-m.sandbox.paypal.com";
 const PORT = 4001;
 
 // ---------------------------------------------------------------------------
 // Credentials guard
 // ---------------------------------------------------------------------------
 if (!clientId || !clientSecret) {
-  console.log(
-    "S-4 SPIKE: credentials not set. Documenting expected flow; exiting 0.",
-  );
+  console.log("S-4 SPIKE: credentials not set. Documenting expected flow; exiting 0.");
   console.log("");
   console.log("Expected flow:");
   console.log("  1. POST /webhook receives raw body from PayPal.");
   console.log("  2. Extract headers:");
-  console.log(
-    "       PAYPAL-TRANSMISSION-ID, PAYPAL-TRANSMISSION-TIME, PAYPAL-CERT-URL,",
-  );
+  console.log("       PAYPAL-TRANSMISSION-ID, PAYPAL-TRANSMISSION-TIME, PAYPAL-CERT-URL,");
   console.log("       PAYPAL-TRANSMISSION-SIG, PAYPAL-AUTH-ALGO");
-  console.log(
-    "  3. POST /v1/notifications/verify-webhook-signature with those headers +",
-  );
+  console.log("  3. POST /v1/notifications/verify-webhook-signature with those headers +");
   console.log("       webhook_id (from PAYPAL_WEBHOOK_ID env) + raw body.");
-  console.log(
-    "  4. verification_status === 'SUCCESS' => event is genuine; otherwise reject.",
-  );
+  console.log("  4. verification_status === 'SUCCESS' => event is genuine; otherwise reject.");
   process.exit(0);
 }
 
@@ -98,7 +89,10 @@ async function getToken(): Promise<string> {
   const creds = Buffer.from(`${clientId}:${clientSecret}`).toString("base64");
   const res = await fetch(`${apiBase}/v1/oauth2/token`, {
     method: "POST",
-    headers: { Authorization: `Basic ${creds}`, "Content-Type": "application/x-www-form-urlencoded" },
+    headers: {
+      Authorization: `Basic ${creds}`,
+      "Content-Type": "application/x-www-form-urlencoded",
+    },
     body: "grant_type=client_credentials",
     signal: AbortSignal.timeout(15_000),
   });
@@ -112,10 +106,7 @@ async function getToken(): Promise<string> {
 // ---------------------------------------------------------------------------
 // Verify webhook signature
 // ---------------------------------------------------------------------------
-async function verifySignature(
-  headers: Record<string, string>,
-  rawBody: string,
-): Promise<boolean> {
+async function verifySignature(headers: Record<string, string>, rawBody: string): Promise<boolean> {
   const token = await getToken();
   const payload = {
     auth_algo: headers["paypal-auth-algo"] ?? "",
@@ -127,18 +118,15 @@ async function verifySignature(
     webhook_event: JSON.parse(rawBody) as unknown,
   };
 
-  const res = await fetch(
-    `${apiBase}/v1/notifications/verify-webhook-signature`,
-    {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${token}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(payload),
-      signal: AbortSignal.timeout(15_000),
+  const res = await fetch(`${apiBase}/v1/notifications/verify-webhook-signature`, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${token}`,
+      "Content-Type": "application/json",
     },
-  );
+    body: JSON.stringify(payload),
+    signal: AbortSignal.timeout(15_000),
+  });
 
   const data = (await res.json()) as { verification_status?: string };
   return data.verification_status === "SUCCESS";
@@ -220,9 +208,7 @@ const server = createServer(async (req, res) => {
     const amount = resource["amount"] as Record<string, unknown> | undefined;
     if (amount) {
       // currency_code and value are structural – safe to log
-      console.log(
-        `  amount     : ${String(amount["currency_code"])} ${String(amount["value"])}`,
-      );
+      console.log(`  amount     : ${String(amount["currency_code"])} ${String(amount["value"])}`);
     }
     console.log(`  resource_id: ${String(resource["id"] ?? "")}`);
     console.log(`  status     : ${String(resource["status"] ?? "")}`);
@@ -234,10 +220,6 @@ const server = createServer(async (req, res) => {
 
 server.listen(PORT, "0.0.0.0", () => {
   console.log(`S-4 SPIKE server listening on port ${PORT}`);
-  console.log(
-    `Register ngrok tunnel URL https://<id>.ngrok.io/webhook as PayPal Sandbox webhook.`,
-  );
-  console.log(
-    "Make a Sandbox payment to trigger PAYMENT.CAPTURE.COMPLETED and verify SUCCESS.",
-  );
+  console.log(`Register ngrok tunnel URL https://<id>.ngrok.io/webhook as PayPal Sandbox webhook.`);
+  console.log("Make a Sandbox payment to trigger PAYMENT.CAPTURE.COMPLETED and verify SUCCESS.");
 });

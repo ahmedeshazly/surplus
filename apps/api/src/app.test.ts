@@ -63,9 +63,7 @@ describe("GET /api/health", () => {
 
 describe("GET /api/summary", () => {
   it("returns 200 for a valid merchant", async () => {
-    const res = await request(app).get(
-      "/api/summary?merchantId=persona_steady_retainer",
-    );
+    const res = await request(app).get("/api/summary?merchantId=persona_steady_retainer");
     expect(res.status).toBe(200);
     expect(res.body.merchantId).toBe("persona_steady_retainer");
     expect(res.body.completedMonthsCount).toBe(12);
@@ -119,9 +117,7 @@ describe("POST /api/plan", () => {
     expect(res.body.summary).toBeDefined();
     expect(res.body.surplus.modelStatus).toBe("OK");
     expect(res.body.plan.bands).toHaveLength(3);
-    expect(res.body.plan.disclaimerId).toBe(
-      "EDUCATIONAL_NOT_FINANCIAL_ADVICE_V1",
-    );
+    expect(res.body.plan.disclaimerId).toBe("EDUCATIONAL_NOT_FINANCIAL_ADVICE_V1");
   });
 
   it("returns 400 for a missing risk profile", async () => {
@@ -176,9 +172,7 @@ describe("POST /api/scenario", () => {
 
 describe("GET /api/transactions", () => {
   it("returns normalized transactions for a merchant", async () => {
-    const res = await request(app).get(
-      "/api/transactions?merchantId=persona_steady_retainer",
-    );
+    const res = await request(app).get("/api/transactions?merchantId=persona_steady_retainer");
     expect(res.status).toBe(200);
     expect(Array.isArray(res.body)).toBe(true);
     expect(res.body).toHaveLength(12);
@@ -228,16 +222,10 @@ describe("misc", () => {
   });
 
   it("sets CORS only for the configured origin", async () => {
-    const allowed = await request(app)
-      .get("/api/health")
-      .set("Origin", "http://localhost:3000");
-    expect(allowed.headers["access-control-allow-origin"]).toBe(
-      "http://localhost:3000",
-    );
+    const allowed = await request(app).get("/api/health").set("Origin", "http://localhost:3000");
+    expect(allowed.headers["access-control-allow-origin"]).toBe("http://localhost:3000");
 
-    const denied = await request(app)
-      .get("/api/health")
-      .set("Origin", "http://evil.example");
+    const denied = await request(app).get("/api/health").set("Origin", "http://evil.example");
     expect(denied.headers["access-control-allow-origin"]).toBeUndefined();
   });
 });

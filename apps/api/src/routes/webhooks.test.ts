@@ -98,12 +98,8 @@ describe("POST /api/webhooks/paypal (TST-05)", () => {
     expect(store.balanceCents(LIVE_MERCHANT)).toBe(before + 116470);
     expect(store.transactionCount(LIVE_MERCHANT)).toBe(txBefore + 1);
     expect(store.eventCount()).toBe(1);
-    expect(
-      fake.chunks.some((chunk) => chunk.includes("payment.received")),
-    ).toBe(true);
-    expect(
-      fake.chunks.some((chunk) => chunk.includes("plan.updated")),
-    ).toBe(true);
+    expect(fake.chunks.some((chunk) => chunk.includes("payment.received"))).toBe(true);
+    expect(fake.chunks.some((chunk) => chunk.includes("plan.updated"))).toBe(true);
   });
 
   it("verifies the exact raw bytes before anything is written", async () => {

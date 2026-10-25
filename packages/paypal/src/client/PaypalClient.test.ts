@@ -65,9 +65,7 @@ describe("PaypalClient – token cache", () => {
 
   it("fetches a token on first use", async () => {
     const client = new PaypalClient(defaultConfig());
-    const fetchMock = vi
-      .spyOn(globalThis, "fetch")
-      .mockResolvedValueOnce(makeTokenResponse());
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(makeTokenResponse());
 
     await client.getAccessToken();
     expect(fetchMock).toHaveBeenCalledTimes(1);
@@ -76,9 +74,7 @@ describe("PaypalClient – token cache", () => {
 
   it("reuses the cached token on second call", async () => {
     const client = new PaypalClient(defaultConfig());
-    const fetchMock = vi
-      .spyOn(globalThis, "fetch")
-      .mockResolvedValue(makeTokenResponse());
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(makeTokenResponse());
 
     await client.getAccessToken();
     await client.getAccessToken();
@@ -129,10 +125,7 @@ describe("PaypalClient – token cache", () => {
     });
 
     // Trigger two concurrent getAccessToken calls
-    const [t1, t2] = await Promise.all([
-      client.getAccessToken(),
-      client.getAccessToken(),
-    ]);
+    const [t1, t2] = await Promise.all([client.getAccessToken(), client.getAccessToken()]);
     expect(t1).toBe(t2);
     expect(callCount).toBe(1); // Only one OAuth request should have been made
   }, 10_000);
@@ -166,10 +159,7 @@ describe("PaypalClient – backoff", () => {
         }),
       );
 
-    const result = await client.searchTransactions(
-      "2026-01-01T00:00:00Z",
-      "2026-01-15T00:00:00Z",
-    );
+    const result = await client.searchTransactions("2026-01-01T00:00:00Z", "2026-01-15T00:00:00Z");
     expect(result.transaction_details).toHaveLength(0);
     // fetch called: 1 OAuth + 3 transaction attempts
     expect(fetchMock).toHaveBeenCalledTimes(4);
@@ -237,10 +227,7 @@ describe("PaypalClient – searchTransactions", () => {
         }),
       );
 
-    const result = await client.searchTransactions(
-      "2026-01-01T00:00:00Z",
-      "2026-02-01T00:00:00Z",
-    );
+    const result = await client.searchTransactions("2026-01-01T00:00:00Z", "2026-02-01T00:00:00Z");
     expect(result.page).toBe(1);
   });
 
@@ -434,9 +421,7 @@ describe("PaypalClient – verifyWebhookSignature", () => {
     const client = new PaypalClient(defaultConfig());
     vi.spyOn(globalThis, "fetch")
       .mockResolvedValueOnce(makeTokenResponse())
-      .mockResolvedValueOnce(
-        makeJsonResponse({ verification_status: "SUCCESS" }),
-      );
+      .mockResolvedValueOnce(makeJsonResponse({ verification_status: "SUCCESS" }));
 
     const ok = await client.verifyWebhookSignature(sampleHeaders, rawBody, "WEBHOOK-ID-123");
     expect(ok).toBe(true);
@@ -446,9 +431,7 @@ describe("PaypalClient – verifyWebhookSignature", () => {
     const client = new PaypalClient(defaultConfig());
     vi.spyOn(globalThis, "fetch")
       .mockResolvedValueOnce(makeTokenResponse())
-      .mockResolvedValueOnce(
-        makeJsonResponse({ verification_status: "FAILURE" }),
-      );
+      .mockResolvedValueOnce(makeJsonResponse({ verification_status: "FAILURE" }));
 
     const ok = await client.verifyWebhookSignature(sampleHeaders, rawBody, "WEBHOOK-ID-123");
     expect(ok).toBe(false);
@@ -481,16 +464,13 @@ describe("PaypalClient – verifyWebhookSignature", () => {
 // Sandbox integration tests (skipped when credentials absent)
 // ---------------------------------------------------------------------------
 
-const hasCreds = Boolean(
-  process.env["PAYPAL_CLIENT_ID"] && process.env["PAYPAL_CLIENT_SECRET"],
-);
+const hasCreds = Boolean(process.env["PAYPAL_CLIENT_ID"] && process.env["PAYPAL_CLIENT_SECRET"]);
 
 describe.skipIf(!hasCreds)("PaypalClient – Sandbox integration", () => {
   const client = new PaypalClient({
     clientId: process.env["PAYPAL_CLIENT_ID"] ?? "",
     clientSecret: process.env["PAYPAL_CLIENT_SECRET"] ?? "",
-    baseUrl:
-      process.env["PAYPAL_API_BASE"] ?? "https://api-m.sandbox.paypal.com",
+    baseUrl: process.env["PAYPAL_API_BASE"] ?? "https://api-m.sandbox.paypal.com",
   });
 
   it("obtains a valid OAuth token", async () => {

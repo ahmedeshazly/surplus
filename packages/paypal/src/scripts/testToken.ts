@@ -31,8 +31,7 @@ try {
 
 const clientId = process.env["PAYPAL_CLIENT_ID"];
 const clientSecret = process.env["PAYPAL_CLIENT_SECRET"];
-const apiBase =
-  process.env["PAYPAL_API_BASE"] ?? "https://api-m.sandbox.paypal.com";
+const apiBase = process.env["PAYPAL_API_BASE"] ?? "https://api-m.sandbox.paypal.com";
 
 if (!clientId || !clientSecret) {
   console.error(
@@ -42,9 +41,7 @@ if (!clientId || !clientSecret) {
   process.exit(1);
 }
 
-const credentials = Buffer.from(`${clientId}:${clientSecret}`).toString(
-  "base64",
-);
+const credentials = Buffer.from(`${clientId}:${clientSecret}`).toString("base64");
 
 let res: Response;
 try {

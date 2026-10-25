@@ -4,11 +4,7 @@
 // from @surplus/contracts; nothing is redefined here. R3 may absorb these into
 // packages/contracts in a later pass (recorded as a request in docs/decisions.md).
 import { z } from "zod";
-import {
-  IncomeShockPctSchema,
-  MerchantIdSchema,
-  RiskProfileSchema,
-} from "@surplus/contracts";
+import { IncomeShockPctSchema, MerchantIdSchema, RiskProfileSchema } from "@surplus/contracts";
 
 const NonNegativeIntSchema = z.number().int().min(0);
 

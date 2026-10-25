@@ -44,10 +44,7 @@ try {
 // ---------------------------------------------------------------------------
 
 /** Recursively describe the shape of a JSON value (types, not values). */
-function describeShape(
-  val: unknown,
-  depth = 0,
-): string {
+function describeShape(val: unknown, depth = 0): string {
   if (val === null) return "null";
   if (Array.isArray(val)) {
     if (val.length === 0) return "[]";
@@ -66,31 +63,20 @@ function describeShape(
 
 const clientId = process.env["PAYPAL_CLIENT_ID"] ?? "";
 const clientSecret = process.env["PAYPAL_CLIENT_SECRET"] ?? "";
-const apiBase =
-  process.env["PAYPAL_API_BASE"] ?? "https://api-m.sandbox.paypal.com";
+const apiBase = process.env["PAYPAL_API_BASE"] ?? "https://api-m.sandbox.paypal.com";
 
 // ---------------------------------------------------------------------------
 // Credentials guard
 // ---------------------------------------------------------------------------
 if (!clientId || !clientSecret) {
-  console.log(
-    "S-1 SPIKE: credentials not set. Documenting code paths only; exiting 0.",
-  );
-  console.log(
-    "Set PAYPAL_CLIENT_ID and PAYPAL_CLIENT_SECRET in .env to run the live spike.",
-  );
+  console.log("S-1 SPIKE: credentials not set. Documenting code paths only; exiting 0.");
+  console.log("Set PAYPAL_CLIENT_ID and PAYPAL_CLIENT_SECRET in .env to run the live spike.");
   console.log("");
   console.log("Expected endpoints:");
   console.log("  GET /v1/oauth2/token           – client_credentials grant");
-  console.log(
-    "  GET /v1/reporting/transactions – params: start_date, end_date, page_size, page",
-  );
-  console.log(
-    "  GET /v1/reporting/balances     – params: as_of_time (RFC3339)",
-  );
-  console.log(
-    "  GET /v1/customer/disputes      – params: dispute_state, page_size, start_time",
-  );
+  console.log("  GET /v1/reporting/transactions – params: start_date, end_date, page_size, page");
+  console.log("  GET /v1/reporting/balances     – params: as_of_time (RFC3339)");
+  console.log("  GET /v1/customer/disputes      – params: dispute_state, page_size, start_time");
   process.exit(0);
 }
 
@@ -146,27 +132,19 @@ console.log("\n── 1. GET /v1/reporting/transactions ──");
   });
 
   try {
-    const res = await fetch(
-      `${apiBase}/v1/reporting/transactions?${params}`,
-      { headers, signal: AbortSignal.timeout(20_000) },
-    );
+    const res = await fetch(`${apiBase}/v1/reporting/transactions?${params}`, {
+      headers,
+      signal: AbortSignal.timeout(20_000),
+    });
     const body = (await res.json()) as unknown;
     console.log(`  Status: ${res.status}`);
     console.log(`  Shape: ${describeShape(body)}`);
 
     // Record key field names for decisions.md
-    if (
-      typeof body === "object" &&
-      body !== null &&
-      "transaction_details" in body
-    ) {
-      const details = (body as { transaction_details: unknown[] })
-        .transaction_details;
+    if (typeof body === "object" && body !== null && "transaction_details" in body) {
+      const details = (body as { transaction_details: unknown[] }).transaction_details;
       if (details.length > 0) {
-        console.log(
-          "  transaction_details[0] shape:",
-          describeShape(details[0]),
-        );
+        console.log("  transaction_details[0] shape:", describeShape(details[0]));
       }
     }
   } catch (err) {
@@ -180,10 +158,10 @@ console.log("\n── 2. GET /v1/reporting/balances ──");
   const asOf = new Date().toISOString().replace(/\.\d{3}Z$/, "Z");
   const params = new URLSearchParams({ as_of_time: asOf });
   try {
-    const res = await fetch(
-      `${apiBase}/v1/reporting/balances?${params}`,
-      { headers, signal: AbortSignal.timeout(20_000) },
-    );
+    const res = await fetch(`${apiBase}/v1/reporting/balances?${params}`, {
+      headers,
+      signal: AbortSignal.timeout(20_000),
+    });
     const body = (await res.json()) as unknown;
     console.log(`  Status: ${res.status}`);
     console.log(`  Shape: ${describeShape(body)}`);
@@ -200,10 +178,10 @@ console.log("\n── 3. GET /v1/customer/disputes ──");
     page_size: "5",
   });
   try {
-    const res = await fetch(
-      `${apiBase}/v1/customer/disputes?${params}`,
-      { headers, signal: AbortSignal.timeout(20_000) },
-    );
+    const res = await fetch(`${apiBase}/v1/customer/disputes?${params}`, {
+      headers,
+      signal: AbortSignal.timeout(20_000),
+    });
     const body = (await res.json()) as unknown;
     console.log(`  Status: ${res.status}`);
     console.log(`  Shape: ${describeShape(body)}`);
