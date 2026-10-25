@@ -30,6 +30,7 @@ import {
 import { SseHub } from "./routes/sseHub";
 import type { WebhookDeps } from "./routes/webhooks";
 import { createWebhookHandler } from "./routes/webhooks";
+import { createAdminResetHandler } from "./routes/admin";
 
 export interface BuildAppOptions {
   /** R2's getMerchantDataset(merchantId) once it lands on main. */
@@ -44,6 +45,8 @@ export interface BuildAppOptions {
   sseHub?: SseHub;
   /** Webhook verification + persistence. Omitted in F-9-only deployments. */
   webhook?: Pick<WebhookDeps, "verify" | "store" | "now">;
+  /** Enables POST /api/admin/reset when a non-empty token is supplied. */
+  admin?: { token: string; reset: () => void | Promise<void> };
   webOrigin?: string;
 }
 
@@ -157,6 +160,11 @@ export function buildApp(options: BuildAppOptions = {}): express.Express {
   app.get("/api/health", (_req, res) => {
     res.status(200).json({ ok: true, service: "surplus-api" });
   });
+
+  if (options.admin !== undefined && options.admin.token.length > 0) {
+    const adminReset = createAdminResetHandler(options.admin);
+    app.post("/api/admin/reset", handle(adminReset));
+  }
 
   app.get(
     "/api/summary",

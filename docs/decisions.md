@@ -257,3 +257,12 @@ no payer PII in any log line).
 - **TEMPORARY (request to R2):** apps/api/src/routes/webhookStore.ts provides an in-memory store and a minimal normalizer. Replace with R2's better-sqlite3 db + normalizer; the controller depends on the InMemoryWebhookStore interface, so the swap is local to server.ts.
 - GET /api/events: text/event-stream, no-cache and no-transform, X-Accel-Buffering off, 15s heartbeat from SseHub.startHeartbeat, per-merchant subscribers, unsubscribe on req close.
 - Tests: 9 webhook tests (valid capture, raw-body verification, tampered signature with zero writes, duplicate id, refund, unknown type, missing headers, malformed amount) plus 9 SSE hub tests. 38 API tests total.
+### 2026-10-25 C-12 Render deploy (R1)
+
+- render.yaml defines surplus-api and surplus-web (Node 20, free plan, oregon, healthCheckPath /api/health). Secrets use sync: false; PAYPAL_API_BASE is fixed to Sandbox.
+- API binds HOST=0.0.0.0 and reads PORT (Render-injected). WEB_ORIGIN is an exact-match CORS allowlist; NEXT_PUBLIC_API_URL is set on the web service after the API URL is known.
+- Seed on boot: apps/api/src/routes/seed.ts seeds the store before listen; POST /api/admin/reset reseeds on demand. It is mounted only when ADMIN_RESET_TOKEN is non-empty.
+- Admin reset compares SHA-256 digests with timingSafeEqual, so neither contents nor length leak. Missing or wrong header returns 401 with a safe body; the reset callback runs only on success.
+- SQLite persistence decision: no Render disk, reseed on every boot. Live webhook rows (webhook_events, live transactions, adjusted balance) are lost on restart; the demo performs a fresh Sandbox payment after each deploy. A persistent disk section can be added later but costs money.
+- TEMPORARY: seed.ts is an adapter; replace with R2's scripts/seed.ts hybrid seeder when it lands.
+- Tests: 5 admin tests (missing, same-length wrong, different-length wrong, correct, unconfigured -> 404). Full workspace build and test green.
