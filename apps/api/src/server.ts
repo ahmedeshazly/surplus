@@ -1,6 +1,12 @@
-// Owner: R1. Task F-9: API process entry point. Builds the Express app and listens.
-// The database-backed dataset loader (C-12) replaces the example loader on boot.
+// Owner: R1. Task C-5/C-12: API process entry point.
+// Wires the real PaypalClient (when credentials exist) and the webhook store,
+// then starts Express. The dataset loader stays on the example adapter until
+// R2's SQLite store lands (marked TEMPORARY in routes/dataset.ts).
+import { PaypalClient } from "@surplus/paypal";
 import { buildApp } from "./app";
+import { exampleDatasetLoader } from "./routes/dataset";
+import { SseHub } from "./routes/sseHub";
+import { InMemoryWebhookStore } from "./routes/webhookStore";
 
 try {
   process.loadEnvFile(new URL("../../../.env", import.meta.url));
@@ -11,7 +17,36 @@ try {
 const host = process.env["HOST"] ?? "127.0.0.1";
 const port = Number(process.env["PORT"] ?? 4000);
 
-const app = buildApp();
+const hub = new SseHub();
+const store = new InMemoryWebhookStore();
+store.seed("live_sandbox", exampleDatasetLoader("live_sandbox"));
+
+const clientId = process.env["PAYPAL_CLIENT_ID"];
+const clientSecret = process.env["PAYPAL_CLIENT_SECRET"];
+const webhookId = process.env["PAYPAL_WEBHOOK_ID"];
+const apiBase =
+  process.env["PAYPAL_API_BASE"] ?? "https://api-m.sandbox.paypal.com";
+
+const client =
+  clientId !== undefined && clientSecret !== undefined
+    ? new PaypalClient({ clientId, clientSecret, baseUrl: apiBase })
+    : undefined;
+
+const app = buildApp({
+  loadDataset: (merchantId) =>
+    store.getDataset(merchantId) ?? exampleDatasetLoader(merchantId),
+  sseHub: hub,
+  webhook:
+    client !== undefined && webhookId !== undefined
+      ? {
+          store,
+          verify: (headers, rawBody) =>
+            client.verifyWebhookSignature(headers, rawBody, webhookId),
+        }
+      : undefined,
+});
+
+hub.startHeartbeat(15_000);
 
 app.listen(port, host, () => {
   console.log(`surplus-api listening on http://${host}:${port}`);

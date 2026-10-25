@@ -247,3 +247,13 @@ admin reset endpoint constant-time compare, webhook signature verification befor
 any DB write, Zod validation on all routes, log hygiene (no tokens, no free text,
 no payer PII in any log line).
 
+### 2026-10-25 C-5 webhooks and SSE (R1)
+
+- POST /api/webhooks/paypal is mounted before JSON parsing and uses express.raw; signature verification runs on the exact bytes before any store call.
+- Order enforced: verify -> parse -> dedupe by event id -> single atomic apply -> recompute -> broadcast -> 200. Unknown event types return 200 and write nothing; duplicates return 200 with no double count; invalid signatures return 400 with zero writes.
+- Live merchant: every webhook is attributed to live_sandbox (PayPal does not echo our merchant id). Recorded as a deliberate scope decision for the demo.
+- Event types handled: PAYMENT.CAPTURE.COMPLETED -> payment.received, PAYMENT.CAPTURE.REFUNDED (and PAYMENT.CAPTURE.REFUND) -> refund.processed. Each broadcasts the specific event plus a plan.updated event.
+- Free text is never read: custom_id, notes, memos and payer names are ignored. Payer email is SHA-256 hashed to 8 hex chars at the edge.
+- **TEMPORARY (request to R2):** apps/api/src/routes/webhookStore.ts provides an in-memory store and a minimal normalizer. Replace with R2's better-sqlite3 db + normalizer; the controller depends on the InMemoryWebhookStore interface, so the swap is local to server.ts.
+- GET /api/events: text/event-stream, no-cache and no-transform, X-Accel-Buffering off, 15s heartbeat from SseHub.startHeartbeat, per-merchant subscribers, unsubscribe on req close.
+- Tests: 9 webhook tests (valid capture, raw-body verification, tampered signature with zero writes, duplicate id, refund, unknown type, missing headers, malformed amount) plus 9 SSE hub tests. 38 API tests total.

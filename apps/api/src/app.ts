@@ -27,6 +27,9 @@ import {
   ScenarioRequestSchema,
   SurplusQuerySchema,
 } from "./routes/schemas";
+import { SseHub } from "./routes/sseHub";
+import type { WebhookDeps } from "./routes/webhooks";
+import { createWebhookHandler } from "./routes/webhooks";
 
 export interface BuildAppOptions {
   /** R2's getMerchantDataset(merchantId) once it lands on main. */
@@ -37,6 +40,10 @@ export interface BuildAppOptions {
     dataset: MerchantDataset;
     asOf: string;
   }) => Promise<AdvisorResponse>;
+  /** SSE hub shared by the events route and the webhook controller. */
+  sseHub?: SseHub;
+  /** Webhook verification + persistence. Omitted in F-9-only deployments. */
+  webhook?: Pick<WebhookDeps, "verify" | "store" | "now">;
   webOrigin?: string;
 }
 
@@ -102,11 +109,50 @@ function advisorStub(merchantId: MerchantId): AdvisorResponse {
 export function buildApp(options: BuildAppOptions = {}): express.Express {
   const loadDataset = options.loadDataset ?? exampleDatasetLoader;
   const webOrigin = options.webOrigin ?? process.env["WEB_ORIGIN"] ?? "http://localhost:3000";
+  const sseHub = options.sseHub ?? new SseHub();
   const app = express();
 
   app.disable("x-powered-by");
   app.use(buildCors(webOrigin));
+
+  // Webhooks must see the untouched bytes, so they are mounted before JSON parsing.
+  if (options.webhook !== undefined) {
+    const webhookHandler = createWebhookHandler({
+      verify: options.webhook.verify,
+      store: options.webhook.store,
+      hub: sseHub,
+      now: options.webhook.now,
+    });
+    app.post(
+      "/api/webhooks/paypal",
+      express.raw({ type: () => true, limit: "1mb" }),
+      handle(webhookHandler),
+    );
+  }
+
   app.use(express.json({ limit: "100kb" }));
+
+  app.get("/api/events", (req, res) => {
+    const parsed = MerchantQuerySchema.safeParse(req.query);
+    if (!parsed.success) {
+      res.status(400).json({ error: "invalid_request" });
+      return;
+    }
+    const merchantId = parsed.data.merchantId;
+    res.writeHead(200, {
+      "Content-Type": "text/event-stream",
+      "Cache-Control": "no-cache, no-transform",
+      Connection: "keep-alive",
+      "X-Accel-Buffering": "no",
+    });
+    res.flushHeaders();
+    const unsubscribe = sseHub.subscribe({
+      merchantId,
+      send: (chunk) => res.write(chunk),
+      end: () => res.end(),
+    });
+    req.on("close", unsubscribe);
+  });
 
   app.get("/api/health", (_req, res) => {
     res.status(200).json({ ok: true, service: "surplus-api" });
