@@ -30,9 +30,7 @@ export interface MerchantDataset {
   excludedNonUsdCount: number;
 }
 
-export type DatasetLoader = (
-  merchantId: MerchantId,
-) => MerchantDataset | Promise<MerchantDataset>;
+export type DatasetLoader = (merchantId: MerchantId) => MerchantDataset | Promise<MerchantDataset>;
 
 /**
  * Fixture personas use a fixed asOf so golden values stay reproducible.
