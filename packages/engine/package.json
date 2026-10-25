@@ -15,5 +15,8 @@
   },
   "dependencies": {
     "@surplus/contracts": "workspace:*"
+  },
+  "devDependencies": {
+    "fast-check": "^3.23.2"
   }
 }
