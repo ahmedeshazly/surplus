@@ -1,25 +1,14 @@
-<<<<<<< HEAD
-﻿/**
- * Owner: R1. Task K-3: Sandbox OAuth client-credentials token check.
- *
- * Prints ONLY success/failure and token expiry ΓÇô never the token itself.
-=======
 /**
  * Owner: R1. Task K-3: Sandbox OAuth client-credentials token check.
  *
- * Prints ONLY success/failure and token expiry – never the token itself.
->>>>>>> origin/r1/k-3-sandbox-setup
+ * Prints ONLY success/failure and token expiry - never the token itself.
  * Usage: pnpm --filter @surplus/paypal test:token
  */
 
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 
-<<<<<<< HEAD
-// Load .env from repo root (optional ΓÇô CI can skip)
-=======
-// Load .env from repo root (optional – CI can skip)
->>>>>>> origin/r1/k-3-sandbox-setup
+// Load .env from repo root (optional - CI can skip)
 try {
   const envPath = resolve(
     new URL("../../../../.env", import.meta.url).pathname.slice(
@@ -42,8 +31,7 @@ try {
 
 const clientId = process.env["PAYPAL_CLIENT_ID"];
 const clientSecret = process.env["PAYPAL_CLIENT_SECRET"];
-const apiBase =
-  process.env["PAYPAL_API_BASE"] ?? "https://api-m.sandbox.paypal.com";
+const apiBase = process.env["PAYPAL_API_BASE"] ?? "https://api-m.sandbox.paypal.com";
 
 if (!clientId || !clientSecret) {
   console.error(
@@ -53,9 +41,7 @@ if (!clientId || !clientSecret) {
   process.exit(1);
 }
 
-const credentials = Buffer.from(`${clientId}:${clientSecret}`).toString(
-  "base64",
-);
+const credentials = Buffer.from(`${clientId}:${clientSecret}`).toString("base64");
 
 let res: Response;
 try {
@@ -71,11 +57,7 @@ try {
   });
 } catch (err) {
   const msg = err instanceof Error ? err.message : String(err);
-<<<<<<< HEAD
-  console.error(`FAIL: Network error contacting ${apiBase} ΓÇô ${msg}`);
-=======
-  console.error(`FAIL: Network error contacting ${apiBase} – ${msg}`);
->>>>>>> origin/r1/k-3-sandbox-setup
+  console.error(`FAIL: Network error contacting ${apiBase} - ${msg}`);
   process.exit(1);
 }
 
@@ -89,11 +71,7 @@ if (!res.ok) {
     detail = await res.text().catch(() => "");
   }
   console.error(
-<<<<<<< HEAD
-    `FAIL: PayPal responded ${res.status} ${res.statusText}${detail ? ` ΓÇô ${detail}` : ""}`,
-=======
-    `FAIL: PayPal responded ${res.status} ${res.statusText}${detail ? ` – ${detail}` : ""}`,
->>>>>>> origin/r1/k-3-sandbox-setup
+    `FAIL: PayPal responded ${res.status} ${res.statusText}${detail ? ` - ${detail}` : ""}`,
   );
   process.exit(1);
 }
