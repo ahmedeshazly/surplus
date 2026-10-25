@@ -41,3 +41,4 @@ _Pending: window boundaries, executeAfterDays rule, band min/max under the CV sh
 ## Open questions
 
 _None yet._
+- 2026-10-25T20:00:00+02:00 | STARTUP | R1 | On main. K-2 merged. Next: merge/complete K-3, S-1, S-4, F-1 from origin branches as they exist, then proceed to F-9 onward per task order.
