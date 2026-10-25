@@ -114,6 +114,25 @@ describe("POST /api/webhooks/paypal (TST-05)", () => {
     expect(store.eventCount()).toBe(1);
   });
 
+  it("never stores free text or raw payer identity (H-2)", async () => {
+    const { app, store } = harness();
+    await post(app, CAPTURE_EVENT);
+
+    const dataset = store.getDataset(LIVE_MERCHANT);
+    expect(dataset).toBeDefined();
+    if (dataset === undefined) return;
+
+    const stored = JSON.stringify(dataset);
+    expect(stored).not.toContain("IGNORE ME");
+    expect(stored).not.toContain("buyer@example.com");
+    expect(stored).not.toContain("email_address");
+
+    const live = dataset.transactions.find((tx) => tx.id === "CAPTURE-1");
+    expect(live).toBeDefined();
+    expect(live?.counterpartyHash).toMatch(/^[0-9a-f]{8}$/);
+    expect(live?.counterpartyHash).not.toBe("buyer@example.com");
+  });
+
   it("rejects a tampered signature with zero database change", async () => {
     const { app, store, fake } = harness(false);
     const before = store.balanceCents(LIVE_MERCHANT);

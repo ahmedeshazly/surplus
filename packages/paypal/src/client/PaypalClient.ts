@@ -307,7 +307,7 @@ export class PaypalClient {
     if (diffDays > MAX_WINDOW_DAYS) {
       throw new PayPalError(
         "WINDOW_TOO_LARGE",
-        `searchTransactions window is ${diffDays.toFixed(1)} days; maximum is ${MAX_WINDOW_DAYS} days (FACT-01).`,
+        `searchTransactions window is ${Math.ceil(diffDays)} days; maximum is ${MAX_WINDOW_DAYS} days (FACT-01).`,
       );
     }
 

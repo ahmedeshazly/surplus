@@ -240,4 +240,13 @@ describe("misc", () => {
       .set("Origin", "http://evil.example");
     expect(denied.headers["access-control-allow-origin"]).toBeUndefined();
   });
+
+  it("sends hardened headers and hides the server banner", async () => {
+    const res = await request(app).get("/api/health");
+    expect(res.headers["x-powered-by"]).toBeUndefined();
+    expect(res.headers["x-content-type-options"]).toBe("nosniff");
+    expect(res.headers["referrer-policy"]).toBe("no-referrer");
+    expect(res.headers["x-frame-options"]).toBe("DENY");
+    expect(res.headers["cache-control"]).toBe("no-store");
+  });
 });

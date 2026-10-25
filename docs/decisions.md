@@ -266,3 +266,24 @@ no payer PII in any log line).
 - SQLite persistence decision: no Render disk, reseed on every boot. Live webhook rows (webhook_events, live transactions, adjusted balance) are lost on restart; the demo performs a fresh Sandbox payment after each deploy. A persistent disk section can be added later but costs money.
 - TEMPORARY: seed.ts is an adapter; replace with R2's scripts/seed.ts hybrid seeder when it lands.
 - Tests: 5 admin tests (missing, same-length wrong, different-length wrong, correct, unconfigured -> 404). Full workspace build and test green.
+### 2026-10-25 H-2 security audit (R1)
+
+Checked and changed:
+- Secrets: no .env, key, or database file is tracked (git ls-files); no .env in history (git log --all -- .env); no key-shaped strings matched in tracked files; .env.example holds placeholders only and ADMIN_RESET_TOKEN now defaults to empty (route disabled).
+- Injection and input: every route validates with zod; JSON bodies are capped at 100kb; webhook raw bodies at 1mb; malformed JSON returns 400; the error handler maps unknown failures to 500 internal_error and never prints stack traces or PayPal messages.
+- Webhook trust: signature verification runs on the exact raw bytes before parsing or writing; tampered signatures return 400 with zero writes (tests cover balance, transaction, and event counts); replays are deduped by event id.
+- Privacy: free text (custom_id, notes), payer name, and payer email are never read into storage; only an 8-char SHA-256 counterparty hash is kept; an H-2 test asserts the stored dataset contains neither the email nor the custom_id.
+- Admin reset: constant-time SHA-256 digest compare via timingSafeEqual; empty config disables the route (404); missing or wrong token returns 401 and never calls reset.
+- CORS: exact-match origin from WEB_ORIGIN, no wildcard, no credentials; preflight allow-headers are Content-Type only.
+- Headers: x-powered-by disabled; X-Content-Type-Options nosniff; Referrer-Policy no-referrer; X-Frame-Options DENY; Cache-Control no-store (SSE overrides with no-cache, no-transform).
+- Dependencies: pnpm audit went from 30 advisories (3 critical, 12 high) to 1 high. Upgraded next 14.2.35 to 15.5.28 and react/react-dom 18 to 19 (apps/web was still a stub; build and typecheck pass). Pinned postcss to 8.5.31 via a pnpm override to clear four postcss findings in next's pinned 8.4.31.
+- No secrets are logged; the only console output is the listen address.
+
+Residual risks accepted for the demo:
+- zod 3.24.4 has GHSA high severity for memory exhaustion on oversized constrained collections; patched only in zod 4.6.6, which is a breaking upgrade for @surplus/contracts (R3). Mitigation: 100kb JSON cap plus request schemas that accept no unbounded arrays. Revisit after the hackathon.
+- /api/webhooks/paypal performs a signature verification call before it can know whether the sender is honest; an attacker can force verification work. Accepted because Render has no WAF and the endpoint must verify first. If it is abused, add a per-IP token bucket at the edge.
+- No rate limit on POST /api/plan or /api/advisor; bodies are capped and the engine is pure, but an LLM call can be expensive. Add per-IP limits if public beyond the demo.
+
+Requests to other owners:
+- R5: apps/web now runs Next 15 + React 19. Use React 19 types; do not pin back. next/image is patched in 15.5.28.
+- R3: consider zod 4.6.6+ after the hackathon to close the remaining advisory; the request schemas are R3-owned.

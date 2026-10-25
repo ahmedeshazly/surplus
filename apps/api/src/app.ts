@@ -116,6 +116,13 @@ export function buildApp(options: BuildAppOptions = {}): express.Express {
   const app = express();
 
   app.disable("x-powered-by");
+  app.use((_req, res, next) => {
+    res.setHeader("X-Content-Type-Options", "nosniff");
+    res.setHeader("Referrer-Policy", "no-referrer");
+    res.setHeader("X-Frame-Options", "DENY");
+    res.setHeader("Cache-Control", "no-store");
+    next();
+  });
   app.use(buildCors(webOrigin));
 
   // Webhooks must see the untouched bytes, so they are mounted before JSON parsing.
