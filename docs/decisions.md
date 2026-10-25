@@ -65,3 +65,22 @@ All entries below are Oct 24–25, 2026 (Africa/Cairo), R3, tasks K-4 / F-6 / F-
 ## Open questions
 
 _None yet._
+
+## R1 (Tech Lead - PayPal infrastructure, API, deployment)
+
+### 2026-10-25 F-9 API routes (R1)
+
+- Framework: **Express 4** for pps/api (rationale already recorded under F-1: raw-body handling for the webhook route).
+- Route set: GET /api/health, GET /api/summary, GET /api/surplus, POST /api/plan, POST /api/scenario, GET /api/transactions, POST /api/advisor.
+- Money never leaves @surplus/contracts/@surplus/engine: routes pass integer cents through untouched and contain zero arithmetic.
+- Request wrappers (pps/api/src/routes/schemas.ts) re-use contracts enums only. **Request to R3:** consider absorbing MerchantQuerySchema, SurplusQuerySchema, PlanRequestSchema, ScenarioRequestSchema into contracts.
+- **asOf anchor (request to R2 and R3 to confirm):** fixture personas use DEMO_AS_OF = 2026-10-01T00:00:00Z for reproducible golden values; live_sandbox uses 
+ew Date().toISOString(). Implemented in pps/api/src/routes/dataset.ts.
+- **Temporary stubs:** (1) pps/api/src/routes/dataset.ts returns the contracts example payload until R2 exposes getMerchantDataset(merchantId) in packages/paypal/src/sources; the loader is injected through uildApp(), so the swap is one line. (2) POST /api/advisor returns a FALLBACK_TEMPLATE AdvisorResponse until R4's unAdvisorTurn lands (injectable the same way). Both are marked TEMPORARY in code.
+- Tests: 20 supertest cases (200 valid / 400 invalid per route, 404, malformed JSON, CORS restriction). pnpm -r build and pnpm -r test green.
+
+### Requests to other owners
+
+- **R2:** export MerchantDataset + getMerchantDataset(merchantId) from packages/paypal/src/sources (shape used: transactions, availableBalanceCents, balanceSource, openDisputes, excludedNonUsdCount).
+- **R3:** confirm the fixture sOf anchor; optionally adopt the request schemas into @surplus/contracts.
+- **R4:** export unAdvisorTurn from pps/api/src/agent with the injectable shape used here.

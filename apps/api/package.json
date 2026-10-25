@@ -13,6 +13,13 @@
   "dependencies": {
     "@surplus/contracts": "workspace:*",
     "@surplus/engine": "workspace:*",
-    "@surplus/paypal": "workspace:*"
+    "@surplus/paypal": "workspace:*",
+    "express": "^4.21.2",
+    "zod": "^3.24.4"
+  },
+  "devDependencies": {
+    "@types/express": "^4.17.21",
+    "@types/supertest": "^6.0.2",
+    "supertest": "^7.0.0"
   }
 }
