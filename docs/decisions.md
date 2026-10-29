@@ -117,3 +117,16 @@ _None yet._
 - Live discovery remains pending until R1 provides a valid Sandbox token through
   `PAYPAL_SANDBOX_ACCESS_TOKEN`. Tool availability will be recorded only after an
   authenticated connection; the fixture is not treated as live evidence.
+
+### S-5 live Sandbox evidence (2026-10-29, R4)
+
+- Exchanged the locally configured Sandbox client credentials through PayPal OAuth
+  and stored the temporary access token only in the ignored `.env` with mode 0600.
+  No credential, token, or raw response was printed or committed.
+- Connected successfully to `https://mcp.sandbox.paypal.com/sse`. The authenticated
+  server exposed all three approved read-only tools: `list_transactions`,
+  `list_disputes`, and `get_merchant_insights`; no approved tool was unavailable.
+- Invoked `list_disputes` successfully. The Sandbox account returned no count fields,
+  so the sanitizer emitted `{}` and forwarded no raw records or strings. This is
+  live connection and allowlist evidence; populated-record sanitization remains
+  covered by the adversarial fixture tests.
