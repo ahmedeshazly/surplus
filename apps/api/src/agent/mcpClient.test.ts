@@ -4,29 +4,15 @@ import { experimental_createMCPClient, generateText, tool } from "ai";
 import { MockLanguageModelV1 } from "ai/test";
 import { Experimental_StdioMCPTransport } from "ai/mcp-stdio";
 import { z } from "zod";
-import { connectPaypalMcp, PAYPAL_MCP_ARGS, wrapReadOnlyMcpTools } from "./mcpClient.js";
+import { connectPaypalMcp, PAYPAL_SANDBOX_MCP_URL, wrapReadOnlyMcpTools } from "./mcpClient.js";
 
 describe("read-only MCP boundary", () => {
-  it("discovers the installed PayPal server's read-only tools without an API call", async () => {
-    // Discovery is local: this placeholder is never used to invoke a PayPal API.
-    const session = await connectPaypalMcp("offline-discovery-placeholder");
-    try {
-      expect(session.availableTools).toEqual(["list_transactions", "list_disputes"]);
-      expect(session.unavailableTools).toEqual(["get_merchant_insights"]);
-      expect(Object.keys(session.tools)).toEqual([
-        "paypal_mcp_list_transactions",
-        "paypal_mcp_list_disputes",
-      ]);
-    } finally {
-      await session.close();
-    }
-  }, 15_000);
+  it("uses PayPal AI Toolkit's official Sandbox MCP endpoint", () => {
+    expect(PAYPAL_SANDBOX_MCP_URL).toBe("https://mcp.sandbox.paypal.com/sse");
+  });
 
-  it("never launches PayPal with all tools or a money-moving selector", () => {
-    expect(PAYPAL_MCP_ARGS).toEqual([
-      "--tools=transactions.list,disputes.list",
-      "--paypal-environment=sandbox",
-    ]);
+  it("rejects an empty token before connecting", async () => {
+    await expect(connectPaypalMcp("  ")).rejects.toThrow(/^PAYPAL_ACCESS_TOKEN_REQUIRED$/);
   });
 
   it("omits unknown and write tools and never copies server descriptions", () => {

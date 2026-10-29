@@ -1,7 +1,5 @@
-import { createRequire } from "node:module";
 import { experimental_createMCPClient, tool } from "ai";
 import type { Tool, ToolExecutionOptions } from "ai";
-import { Experimental_StdioMCPTransport } from "ai/mcp-stdio";
 import { sanitizeMcpOutput } from "./mcpSanitizer.js";
 import type { SanitizedMcpOutput } from "./mcpSanitizer.js";
 
@@ -11,12 +9,7 @@ export const READ_ONLY_MCP_TOOLS = [
   "get_merchant_insights",
 ] as const;
 
-// @paypal/mcp 1.8.1 takes product.action selectors, not exposed MCP tool names.
-// Its CLI does not support merchant insights; do not broaden to --tools=all.
-export const PAYPAL_MCP_ARGS = [
-  "--tools=transactions.list,disputes.list",
-  "--paypal-environment=sandbox",
-] as const;
+export const PAYPAL_SANDBOX_MCP_URL = "https://mcp.sandbox.paypal.com/sse";
 
 type Client = Awaited<ReturnType<typeof experimental_createMCPClient>>;
 type DiscoveredTools = Awaited<ReturnType<Client["tools"]>>;
@@ -53,24 +46,25 @@ export function wrapReadOnlyMcpTools(discovered: Record<string, McpTool>) {
   return safe;
 }
 
-/** Pass an explicit token; never inherit AI keys or client secrets into the subprocess. */
+/** Pass an explicit Sandbox token; never read AI keys or PayPal client secrets here. */
 export async function connectPaypalMcp(accessToken: string) {
   if (!accessToken.trim()) throw new Error("PAYPAL_ACCESS_TOKEN_REQUIRED");
-  const require = createRequire(import.meta.url);
-  const transport = new Experimental_StdioMCPTransport({
-    command: process.execPath,
-    args: [require.resolve("@paypal/mcp/dist/index.js"), ...PAYPAL_MCP_ARGS],
-    env: {
-      PAYPAL_ACCESS_TOKEN: accessToken,
-      PAYPAL_ENVIRONMENT: "SANDBOX",
-    },
-    stderr: "ignore",
-  });
   let client: Client;
   try {
-    client = await experimental_createMCPClient({ transport });
+    client = await experimental_createMCPClient({
+      name: "surplus-paypal-sandbox",
+      transport: {
+        type: "sse",
+        url: PAYPAL_SANDBOX_MCP_URL,
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+        },
+      },
+      onUncaughtError: () => {
+        // Upstream text can contain sensitive data; keep it outside application logs.
+      },
+    });
   } catch {
-    await transport.close();
     throw new Error("PAYPAL_MCP_CONNECTION_FAILED");
   }
   try {

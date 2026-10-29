@@ -8,10 +8,12 @@ export async function runMcpSpike() {
   } catch {
     // Environment variables can also be supplied by the shell or vault.
   }
-  const token = process.env["PAYPAL_ACCESS_TOKEN"];
-  if (!token) throw new Error("Set PAYPAL_ACCESS_TOKEN locally before running the S-5 live spike.");
+  const token = process.env["PAYPAL_SANDBOX_ACCESS_TOKEN"] ?? process.env["PAYPAL_ACCESS_TOKEN"];
+  if (!token) {
+    throw new Error("Set PAYPAL_SANDBOX_ACCESS_TOKEN locally before running the S-5 live spike.");
+  }
 
-  // A hard deadline also covers a hung stdio subprocess. The OS closes its stdin on exit.
+  // A hard deadline also covers a hung remote SSE connection.
   const deadline = setTimeout(() => {
     console.error("S-5 live spike timed out.");
     process.exit(1);
@@ -44,7 +46,7 @@ export async function runMcpSpike() {
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   runMcpSpike().catch(() => {
     console.error(
-      "S-5 live spike failed. Check PAYPAL_ACCESS_TOKEN and Sandbox permissions locally.",
+      "S-5 live spike failed. Check PAYPAL_SANDBOX_ACCESS_TOKEN and Sandbox permissions locally.",
     );
     process.exitCode = 1;
   });

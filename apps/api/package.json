@@ -12,7 +12,6 @@
     "spike:mcp": "tsx src/agent/spikes/s5_mcp.ts"
   },
   "dependencies": {
-    "@paypal/mcp": "1.8.1",
     "@surplus/contracts": "workspace:*",
     "@surplus/engine": "workspace:*",
     "@surplus/paypal": "workspace:*",

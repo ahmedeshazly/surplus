@@ -104,3 +104,16 @@ _None yet._
   typecheck; the earlier missing-Next.js blocker is resolved. The 22 R4 tests,
   API typecheck, and R4 lint/format checks also pass. The local Gemini key was not
   found in any tracked or non-ignored project file.
+
+### PayPal AI Toolkit follow-up (2026-10-29, R4)
+
+- Installed and enabled the official `paypal@paypal-ai-toolkit` Codex plugin,
+  version 1.2.0, from `paypal/AI-Toolkit`. Codex must be restarted before its
+  skills and `paypal-sandbox` MCP connection appear in a new session.
+- Replaced the limited local `@paypal/mcp` subprocess with PayPal AI Toolkit's
+  official Sandbox SSE endpoint, `https://mcp.sandbox.paypal.com/sse`. This is the
+  server documented to provide reporting and merchant insights. The application
+  still exposes only the three approved read-only names and sanitizes all results.
+- Live discovery remains pending until R1 provides a valid Sandbox token through
+  `PAYPAL_SANDBOX_ACCESS_TOKEN`. Tool availability will be recorded only after an
+  authenticated connection; the fixture is not treated as live evidence.
