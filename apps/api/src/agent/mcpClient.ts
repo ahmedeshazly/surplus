@@ -46,6 +46,10 @@ export function wrapReadOnlyMcpTools(discovered: Record<string, McpTool>) {
   return safe;
 }
 
+export function hasAllRequiredReadOnlyTools(tools: Record<string, SafeMcpTool>) {
+  return READ_ONLY_MCP_TOOLS.every((name) => tools[`paypal_mcp_${name}`] !== undefined);
+}
+
 /** Pass an explicit Sandbox token; never read AI keys or PayPal client secrets here. */
 export async function connectPaypalMcp(accessToken: string) {
   if (!accessToken.trim()) throw new Error("PAYPAL_ACCESS_TOKEN_REQUIRED");
@@ -70,7 +74,7 @@ export async function connectPaypalMcp(accessToken: string) {
   try {
     const discovered = await client.tools();
     const tools = wrapReadOnlyMcpTools(discovered);
-    if (!tools["paypal_mcp_list_transactions"] || !tools["paypal_mcp_list_disputes"]) {
+    if (!hasAllRequiredReadOnlyTools(tools)) {
       throw new Error("PAYPAL_MCP_REQUIRED_TOOL_MISSING");
     }
     return {

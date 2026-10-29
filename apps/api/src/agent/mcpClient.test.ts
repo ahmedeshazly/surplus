@@ -4,7 +4,12 @@ import { experimental_createMCPClient, generateText, tool } from "ai";
 import { MockLanguageModelV1 } from "ai/test";
 import { Experimental_StdioMCPTransport } from "ai/mcp-stdio";
 import { z } from "zod";
-import { connectPaypalMcp, PAYPAL_SANDBOX_MCP_URL, wrapReadOnlyMcpTools } from "./mcpClient.js";
+import {
+  connectPaypalMcp,
+  hasAllRequiredReadOnlyTools,
+  PAYPAL_SANDBOX_MCP_URL,
+  wrapReadOnlyMcpTools,
+} from "./mcpClient.js";
 
 describe("read-only MCP boundary", () => {
   it("uses PayPal AI Toolkit's official Sandbox MCP endpoint", () => {
@@ -28,6 +33,7 @@ describe("read-only MCP boundary", () => {
     expect(Object.keys(tools)).toEqual(["paypal_mcp_list_disputes"]);
     expect(tools["paypal_mcp_list_disputes"]?.description).not.toContain("NVDA");
     expect(write).not.toHaveBeenCalled();
+    expect(hasAllRequiredReadOnlyTools(tools)).toBe(false);
   });
 
   it("replaces upstream errors with a constant safe error", async () => {
@@ -64,6 +70,7 @@ describe("read-only MCP boundary", () => {
         "paypal_mcp_list_disputes",
         "paypal_mcp_get_merchant_insights",
       ]);
+      expect(hasAllRequiredReadOnlyTools(tools)).toBe(true);
       for (const name of Object.keys(tools)) {
         const model = new MockLanguageModelV1({
           doGenerate: async () => ({

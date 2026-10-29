@@ -25,7 +25,7 @@ Vercel AI SDK. The live command invokes the SDK-converted disputes tool directly
 - Return only observed page counts and valid integer pagination totals. No raw
   records, strings, IDs, names, emails, notes, messages, amounts, or URLs reach the
   caller. Monetary data for the advisor must come from the deterministic engine.
-- Upstream errors become constant errors; subprocess stderr is suppressed.
+- Upstream errors become constant errors and are not copied into application logs.
 - The MCP transport receives only its Sandbox token. It does not receive AI keys
   or PayPal client secrets. Close the MCP client after use.
 
@@ -43,10 +43,10 @@ security boundary.
 
 ## Completion evidence
 
-The tests exercise a local stdio MCP fixture and AI SDK tool calls, with
-injected notes, malicious descriptions, and an unwanted write tool. This verifies
-the application boundary without API keys. It does not prove Sandbox access. S-5 remains
-pending until a live read succeeds and its sanitized output is appended to
+The tests exercise a local stdio MCP fixture and AI SDK tool calls, with injected
+notes, malicious descriptions, and an unwanted write tool. This verifies the
+application boundary without API keys. Live Sandbox evidence for all three required
+tools and a sanitized `list_disputes` invocation is recorded in
 `docs/decisions.md`.
 
 References: [PayPal AI Toolkit](https://github.com/paypal/AI-Toolkit),
