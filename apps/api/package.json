@@ -8,11 +8,15 @@
     "start": "tsx src/server.ts",
     "build": "tsc --noEmit -p tsconfig.json",
     "typecheck": "tsc --noEmit -p tsconfig.json",
-    "test": "vitest run --passWithNoTests"
+    "test": "vitest run --passWithNoTests",
+    "spike:mcp": "tsx src/agent/spikes/s5_mcp.ts"
   },
   "dependencies": {
+    "@paypal/mcp": "1.8.1",
     "@surplus/contracts": "workspace:*",
     "@surplus/engine": "workspace:*",
-    "@surplus/paypal": "workspace:*"
+    "@surplus/paypal": "workspace:*",
+    "ai": "4.3.19",
+    "zod": "3.25.76"
   }
 }
