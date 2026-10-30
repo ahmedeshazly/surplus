@@ -1,0 +1,790 @@
+// Owner: R3 (exclusively). Task K-4. One example payload per contract type.
+// The demo payloads encode the agent-context Section 12 video numbers for the
+// "live_sandbox" merchant: $18,500 available, $3,000/month obligations, CV 0.2503,
+// buffer 4.5 months, $13,500 buffer target, $800 risk reserve, $4,200 safe surplus>
+// staged in 4 tranches of $1,050. packages/engine golden tests lock these exact
+// payloads against real engine output.
+import type {
+  AllocationBand,
+  AllocationPlan,
+  AppEvent,
+  AdvisorResponse,
+  BreakdownLine,
+  CashFlowSummary,
+  CitedMetric,
+  MonthlyNetPoint,
+  NormalizedTransaction,
+  OpenDisputesSummary,
+  ScenarioComparisonResult,
+  ScenarioInput,
+  StagingScheduleEntry,
+  SurplusResult,
+  ToolTraceEntry,
+  WindowTotals,
+} from "./index";
+import { DISCLAIMER_ID_V1, DISCLAIMER_TEXT_V1 } from "./index";
+
+export const DEMO_AS_OF = "2026-10-01T00:00:00Z";
+
+export const exampleNormalizedTransaction: NormalizedTransaction = {
+  id: "fix-ls-2026-09-income",
+  merchantId: "live_sandbox",
+  occurredAt: "2026-09-05T12:00:00Z",
+  monthBucket: "2026-09",
+  kind: "income",
+  grossCents: 182000,
+  feeCents: 4000,
+  netCents: 178000,
+  currency: "USD",
+  status: "COMPLETED",
+  counterpartyHash: "a1b2c3d4",
+  source: "fixture",
+};
+
+export const exampleWindowTotals: WindowTotals = {
+  windowLabel: "month",
+  startDate: "2026-09-01T00:00:00Z",
+  endDate: "2026-10-01T00:00:00Z",
+  grossIncomeCents: 182000,
+  feesCents: 4000,
+  refundsCents: 40000,
+  chargebacksCents: 20000,
+  withdrawalsCents: 100000,
+  netCashFlowCents: 118000,
+  transactionCount: 4,
+};
+
+export const exampleMonthlyNetPoint: MonthlyNetPoint = {
+  monthBucket: "2026-09",
+  grossIncomeCents: 182000,
+  feesCents: 4000,
+  refundsCents: 40000,
+  chargebacksCents: 20000,
+  netCents: 118000,
+};
+
+export const exampleOpenDisputesSummary: OpenDisputesSummary = {
+  count: 1,
+  totalAmountCents: 40000,
+  unheldAmountCents: 40000,
+};
+
+const EMPTY_WINDOW: WindowTotals = {
+  windowLabel: "week",
+  startDate: "2026-09-24T00:00:00Z",
+  endDate: "2026-10-01T00:00:00Z",
+  grossIncomeCents: 0,
+  feesCents: 0,
+  refundsCents: 0,
+  chargebacksCents: 0,
+  withdrawalsCents: 0,
+  netCashFlowCents: 0,
+  transactionCount: 0,
+};
+
+export const exampleCashFlowSummary: CashFlowSummary = {
+  merchantId: "live_sandbox",
+  asOf: DEMO_AS_OF,
+  windows: {
+    week: EMPTY_WINDOW,
+    month: exampleWindowTotals,
+    year: {
+      windowLabel: "year",
+      startDate: "2025-10-01T00:00:00Z",
+      endDate: "2026-10-01T00:00:00Z",
+      grossIncomeCents: 2109000,
+      feesCents: 39000,
+      refundsCents: 130000,
+      chargebacksCents: 20000,
+      withdrawalsCents: 1200000,
+      netCashFlowCents: 1920000,
+      transactionCount: 28,
+    },
+  },
+  monthlySeries: [
+    {
+      monthBucket: "2025-10",
+      grossIncomeCents: 205000,
+      feesCents: 3000,
+      refundsCents: 0,
+      chargebacksCents: 0,
+      netCents: 202000,
+    },
+    {
+      monthBucket: "2025-11",
+      grossIncomeCents: 121000,
+      feesCents: 3000,
+      refundsCents: 0,
+      chargebacksCents: 0,
+      netCents: 118000,
+    },
+    {
+      monthBucket: "2025-12",
+      grossIncomeCents: 205000,
+      feesCents: 3000,
+      refundsCents: 0,
+      chargebacksCents: 0,
+      netCents: 202000,
+    },
+    {
+      monthBucket: "2026-01",
+      grossIncomeCents: 163000,
+      feesCents: 3000,
+      refundsCents: 0,
+      chargebacksCents: 0,
+      netCents: 160000,
+    },
+    {
+      monthBucket: "2026-02",
+      grossIncomeCents: 121000,
+      feesCents: 3000,
+      refundsCents: 0,
+      chargebacksCents: 0,
+      netCents: 118000,
+    },
+    {
+      monthBucket: "2026-03",
+      grossIncomeCents: 205000,
+      feesCents: 3000,
+      refundsCents: 0,
+      chargebacksCents: 0,
+      netCents: 202000,
+    },
+    {
+      monthBucket: "2026-04",
+      grossIncomeCents: 163000,
+      feesCents: 3000,
+      refundsCents: 0,
+      chargebacksCents: 0,
+      netCents: 160000,
+    },
+    {
+      monthBucket: "2026-05",
+      grossIncomeCents: 121000,
+      feesCents: 3000,
+      refundsCents: 0,
+      chargebacksCents: 0,
+      netCents: 118000,
+    },
+    {
+      monthBucket: "2026-06",
+      grossIncomeCents: 205000,
+      feesCents: 3000,
+      refundsCents: 0,
+      chargebacksCents: 0,
+      netCents: 202000,
+    },
+    {
+      monthBucket: "2026-07",
+      grossIncomeCents: 256000,
+      feesCents: 4000,
+      refundsCents: 50000,
+      chargebacksCents: 0,
+      netCents: 202000,
+    },
+    {
+      monthBucket: "2026-08",
+      grossIncomeCents: 162000,
+      feesCents: 4000,
+      refundsCents: 40000,
+      chargebacksCents: 0,
+      netCents: 118000,
+    },
+    {
+      monthBucket: "2026-09",
+      grossIncomeCents: 182000,
+      feesCents: 4000,
+      refundsCents: 40000,
+      chargebacksCents: 20000,
+      netCents: 118000,
+    },
+  ],
+  completedMonthsCount: 12,
+  baselineMonthlyNetCents: 160000,
+  meanMonthlyNetCents: 160000,
+  stdDevMonthlyNetCents: 40045.42874831488,
+  cv: 0.2503,
+  trendSlopeCentsPerMonth: -2643.36,
+  refundRate90d: 0.25,
+  openDisputes: exampleOpenDisputesSummary,
+  excludedNonUsdCount: 0,
+};
+
+export const exampleBreakdownLine: BreakdownLine = {
+  code: "BUFFER_TARGET",
+  label: "Cash buffer target",
+  formulaText: "round(bufferMonths * monthlyObligationsCents) = round(4.5 * 300000) = 1350000",
+  valueCents: 1350000,
+  unit: "USD_CENTS",
+};
+
+export const exampleSurplusResult: SurplusResult = {
+  merchantId: "live_sandbox",
+  modelStatus: "OK",
+  availableBalanceCents: 1850000,
+  balanceSource: "PAYPAL_REPORTING_API",
+  monthlyObligationsCents: 300000,
+  obligationsSource: "USER_INPUT",
+  riskProfile: "BALANCED",
+  cv: 0.2503,
+  bufferMonths: 4.5,
+  bufferTargetCents: 1350000,
+  riskReserveCents: 80000,
+  safeSurplusCents: 420000,
+  stagingTrancheCount: 4,
+  stagingScheduleCents: [105000, 105000, 105000, 105000],
+  breakdownLines: [
+    {
+      code: "AVAILABLE_BALANCE",
+      label: "Available PayPal balance",
+      formulaText: "availableBalanceCents (source: PAYPAL_REPORTING_API) = 1850000",
+      valueCents: 1850000,
+      unit: "USD_CENTS",
+    },
+    {
+      code: "BASELINE_MONTHLY_NET",
+      label: "Baseline monthly net (median)",
+      formulaText: "median(monthly net over 12 completed months) = 160000",
+      valueCents: 160000,
+      unit: "USD_CENTS",
+    },
+    {
+      code: "VOLATILITY_CV",
+      label: "Income volatility (CV)",
+      formulaText: "round4(sample std dev / max(mean, baseline)) = 40045.43 / 160000 = 0.2503",
+      valueScalar: 0.2503,
+      unit: "RATIO",
+    },
+    {
+      code: "BUFFER_MONTHS",
+      label: "Cash buffer runway",
+      formulaText: "round2(clamp(3 + 6 * cv, 3, 9)) = clamp(3 + 6 * 0.2503, 3, 9) = 4.5",
+      valueScalar: 4.5,
+      unit: "MONTHS",
+    },
+    {
+      code: "BUFFER_TARGET",
+      label: "Cash buffer target",
+      formulaText: "round(bufferMonths * monthlyObligationsCents) = round(4.5 * 300000) = 1350000",
+      valueCents: 1350000,
+      unit: "USD_CENTS",
+    },
+    {
+      code: "OPEN_DISPUTE_RESERVE",
+      label: "Open dispute reserve (unheld)",
+      formulaText:
+        "unheld open dispute exposure not already withheld from the available balance (count: 1) = 40000",
+      valueCents: 40000,
+      unit: "USD_CENTS",
+    },
+    {
+      code: "EXPECTED_REFUND_EXPOSURE",
+      label: "Expected refund exposure (90-day rate)",
+      formulaText:
+        "round(round4(150000 / 600000, 4) * max(baseline, 0)) = round(0.25 * 160000) = 40000",
+      valueCents: 40000,
+      unit: "USD_CENTS",
+    },
+    {
+      code: "TOTAL_RISK_RESERVE",
+      label: "Total risk reserve",
+      formulaText: "open dispute reserve + expected refund exposure = 40000 + 40000 = 80000",
+      valueCents: 80000,
+      unit: "USD_CENTS",
+    },
+    {
+      code: "SAFE_SURPLUS",
+      label: "Safe-to-invest surplus",
+      formulaText:
+        "max(0, available balance - buffer target - risk reserve) = max(0, 1850000 - 1350000 - 80000) = 420000",
+      valueCents: 420000,
+      unit: "USD_CENTS",
+    },
+    {
+      code: "STAGED_MONTHLY_TRANCHE",
+      label: "First staging tranche",
+      formulaText:
+        "floor(safe surplus / 4) with remainder added to tranche 1 (of 4), executeAfterDays = (k - 1) * 30 = 105000",
+      valueCents: 105000,
+      unit: "USD_CENTS",
+    },
+  ],
+};
+
+export const exampleAllocationBand: AllocationBand = {
+  assetClass: "CASH_MMF",
+  label: "Cash and Money Market",
+  minPct: 20,
+  maxPct: 40,
+  targetMidpointPct: 30,
+  allocatedMidpointCents: 126000,
+  reasonCode: "BASE_BALANCED_BAND",
+};
+
+export const exampleStagingScheduleEntry: StagingScheduleEntry = {
+  trancheNumber: 1,
+  executeAfterDays: 0,
+  amountCents: 105000,
+};
+
+export const exampleAllocationPlan: AllocationPlan = {
+  merchantId: "live_sandbox",
+  riskProfile: "BALANCED",
+  safeSurplusCents: 420000,
+  highVolatilityShiftApplied: false,
+  bands: [
+    {
+      assetClass: "CASH_MMF",
+      label: "Cash and Money Market",
+      minPct: 20,
+      maxPct: 40,
+      targetMidpointPct: 30,
+      allocatedMidpointCents: 126000,
+      reasonCode: "BASE_BALANCED_BAND",
+    },
+    {
+      assetClass: "SHORT_TERM_BONDS",
+      label: "Short-Term Treasuries and Bonds",
+      minPct: 20,
+      maxPct: 40,
+      targetMidpointPct: 30,
+      allocatedMidpointCents: 126000,
+      reasonCode: "BASE_BALANCED_BAND",
+    },
+    {
+      assetClass: "BROAD_EQUITY_INDEX",
+      label: "Broad Diversified Equity Index",
+      minPct: 30,
+      maxPct: 50,
+      targetMidpointPct: 40,
+      allocatedMidpointCents: 168000,
+      reasonCode: "BASE_BALANCED_BAND",
+    },
+  ],
+  stagingSchedule: [
+    { trancheNumber: 1, executeAfterDays: 0, amountCents: 105000 },
+    { trancheNumber: 2, executeAfterDays: 30, amountCents: 105000 },
+    { trancheNumber: 3, executeAfterDays: 60, amountCents: 105000 },
+    { trancheNumber: 4, executeAfterDays: 90, amountCents: 105000 },
+  ],
+  disclaimerId: DISCLAIMER_ID_V1,
+  disclaimerText: DISCLAIMER_TEXT_V1,
+};
+
+export const exampleCitedMetric: CitedMetric = {
+  metricCode: "safe_surplus_cents",
+  rawValue: 420000,
+  formattedText: "$4,200.00",
+};
+
+export const exampleToolTraceEntry: ToolTraceEntry = {
+  toolName: "get_surplus",
+  durationMs: 3,
+  sanitizedOutputSummary: {
+    modelStatus: "OK",
+    bufferMonths: 4.5,
+    safeSurplusCents: 420000,
+  },
+};
+
+export const exampleAdvisorResponse: AdvisorResponse = {
+  merchantId: "live_sandbox",
+  narrativeMarkdown: [
+    "## Your safe-to-invest surplus",
+    "",
+    "Over the last 12 completed months your PayPal net cash flow averaged $1,600.00 per month, with a baseline median of $1,600.00 and an income volatility (coefficient of variation) of 0.2503.",
+    "",
+    "The engine keeps a cash buffer of 4.5 months of your $3,000.00 monthly obligations - a target of $13,500.00. On top of that it reserves $800.00 for risk: $400.00 of open disputes still attached to your balance and $400.00 of expected refund exposure (a 90-day refund rate of 25%).",
+    "",
+    "That leaves a safe-to-invest surplus of $4,200.00 out of your $18,500.00 available balance. As an educational illustration, a BALANCED profile stages this in 4 tranches of about $1,050.00 each (the first tranche may carry a small rounding remainder).",
+  ].join("\n"),
+  citedNumbers: [
+    { metricCode: "completed_months_count", rawValue: 12, formattedText: "12 months" },
+    { metricCode: "mean_monthly_net_cents", rawValue: 160000, formattedText: "$1,600.00" },
+    { metricCode: "baseline_monthly_net_cents", rawValue: 160000, formattedText: "$1,600.00" },
+    { metricCode: "cv", rawValue: 0.2503, formattedText: "0.2503" },
+    { metricCode: "buffer_months", rawValue: 4.5, formattedText: "4.5 months" },
+    { metricCode: "monthly_obligations_cents", rawValue: 300000, formattedText: "$3,000.00" },
+    { metricCode: "buffer_target_cents", rawValue: 1350000, formattedText: "$13,500.00" },
+    { metricCode: "open_dispute_unheld_cents", rawValue: 40000, formattedText: "$400.00" },
+    { metricCode: "refund_rate_90d", rawValue: 0.25, formattedText: "25%" },
+    { metricCode: "expected_refund_exposure_cents", rawValue: 40000, formattedText: "$400.00" },
+    { metricCode: "risk_reserve_cents", rawValue: 80000, formattedText: "$800.00" },
+    { metricCode: "available_balance_cents", rawValue: 1850000, formattedText: "$18,500.00" },
+    { metricCode: "safe_surplus_cents", rawValue: 420000, formattedText: "$4,200.00" },
+    { metricCode: "first_tranche_cents", rawValue: 105000, formattedText: "about $1,050.00" },
+  ],
+  toolTrace: [
+    {
+      toolName: "get_cash_flow_summary",
+      durationMs: 5,
+      sanitizedOutputSummary: { completedMonthsCount: 12, transactionCountYear: 28 },
+    },
+    {
+      toolName: "get_surplus",
+      durationMs: 2,
+      sanitizedOutputSummary: { modelStatus: "OK", bufferMonths: 4.5, safeSurplusCents: 420000 },
+    },
+    {
+      toolName: "get_allocation_plan",
+      durationMs: 2,
+      sanitizedOutputSummary: { bandCount: 3, firstTrancheCents: 105000 },
+    },
+  ],
+  validatorStatus: "PASSED",
+  validatorMismatchesCaught: [],
+  disclaimerId: DISCLAIMER_ID_V1,
+  disclaimerText: DISCLAIMER_TEXT_V1,
+  generatedAt: "2026-10-01T00:00:30Z",
+};
+
+export const exampleScenarioInput: ScenarioInput = {
+  merchantId: "live_sandbox",
+  monthlyObligationsCents: 300000,
+  riskProfile: "BALANCED",
+  incomeShockPct: -30,
+  delayedPaymentCents: 0,
+  oneOffExpenseCents: 0,
+};
+
+export const exampleScenarioComparisonResult: ScenarioComparisonResult = {
+  scenarioInput: exampleScenarioInput,
+  baselineSurplus: exampleSurplusResult,
+  stressedSurplus: {
+    merchantId: "live_sandbox",
+    modelStatus: "OK",
+    availableBalanceCents: 1850000,
+    balanceSource: "PAYPAL_REPORTING_API",
+    monthlyObligationsCents: 300000,
+    obligationsSource: "USER_INPUT",
+    riskProfile: "BALANCED",
+    cv: 0.2699,
+    bufferMonths: 4.62,
+    bufferTargetCents: 1386000,
+    riskReserveCents: 79995,
+    safeSurplusCents: 384005,
+    stagingTrancheCount: 4,
+    stagingScheduleCents: [96002, 96001, 96001, 96001],
+    breakdownLines: [
+      {
+        code: "AVAILABLE_BALANCE",
+        label: "Available PayPal balance",
+        formulaText: "availableBalanceCents (source: PAYPAL_REPORTING_API) = 1850000",
+        valueCents: 1850000,
+        unit: "USD_CENTS",
+      },
+      {
+        code: "BASELINE_MONTHLY_NET",
+        label: "Baseline monthly net (median)",
+        formulaText: "median(monthly net over 12 completed months) = 112000",
+        valueCents: 112000,
+        unit: "USD_CENTS",
+      },
+      {
+        code: "VOLATILITY_CV",
+        label: "Income volatility (CV)",
+        formulaText: "round4(sample std dev / max(mean, baseline)) = 30226.19 / 112000 = 0.2699",
+        valueScalar: 0.2699,
+        unit: "RATIO",
+      },
+      {
+        code: "BUFFER_MONTHS",
+        label: "Cash buffer runway",
+        formulaText: "round2(clamp(3 + 6 * cv, 3, 9)) = clamp(3 + 6 * 0.2699, 3, 9) = 4.62",
+        valueScalar: 4.62,
+        unit: "MONTHS",
+      },
+      {
+        code: "BUFFER_TARGET",
+        label: "Cash buffer target",
+        formulaText:
+          "round(bufferMonths * monthlyObligationsCents) = round(4.62 * 300000) = 1386000",
+        valueCents: 1386000,
+        unit: "USD_CENTS",
+      },
+      {
+        code: "OPEN_DISPUTE_RESERVE",
+        label: "Open dispute reserve (unheld)",
+        formulaText:
+          "unheld open dispute exposure not already withheld from the available balance (count: 1) = 40000",
+        valueCents: 40000,
+        unit: "USD_CENTS",
+      },
+      {
+        code: "EXPECTED_REFUND_EXPOSURE",
+        label: "Expected refund exposure (90-day rate)",
+        formulaText:
+          "round(round4(150000 / 420000, 4) * max(baseline, 0)) = round(0.3571 * 112000) = 39995",
+        valueCents: 39995,
+        unit: "USD_CENTS",
+      },
+      {
+        code: "TOTAL_RISK_RESERVE",
+        label: "Total risk reserve",
+        formulaText: "open dispute reserve + expected refund exposure = 40000 + 39995 = 79995",
+        valueCents: 79995,
+        unit: "USD_CENTS",
+      },
+      {
+        code: "SAFE_SURPLUS",
+        label: "Safe-to-invest surplus",
+        formulaText:
+          "max(0, available balance - buffer target - risk reserve) = max(0, 1850000 - 1386000 - 79995) = 384005",
+        valueCents: 384005,
+        unit: "USD_CENTS",
+      },
+      {
+        code: "STAGED_MONTHLY_TRANCHE",
+        label: "First staging tranche",
+        formulaText:
+          "floor(safe surplus / 4) with remainder added to tranche 1 (of 4), executeAfterDays = (k - 1) * 30 = 96002",
+        valueCents: 96002,
+        unit: "USD_CENTS",
+      },
+    ],
+  },
+  stressedPlan: {
+    merchantId: "live_sandbox",
+    riskProfile: "BALANCED",
+    safeSurplusCents: 384005,
+    highVolatilityShiftApplied: false,
+    bands: [
+      {
+        assetClass: "CASH_MMF",
+        label: "Cash and Money Market",
+        minPct: 20,
+        maxPct: 40,
+        targetMidpointPct: 30,
+        allocatedMidpointCents: 115201,
+        reasonCode: "BASE_BALANCED_BAND",
+      },
+      {
+        assetClass: "SHORT_TERM_BONDS",
+        label: "Short-Term Treasuries and Bonds",
+        minPct: 20,
+        maxPct: 40,
+        targetMidpointPct: 30,
+        allocatedMidpointCents: 115202,
+        reasonCode: "BASE_BALANCED_BAND",
+      },
+      {
+        assetClass: "BROAD_EQUITY_INDEX",
+        label: "Broad Diversified Equity Index",
+        minPct: 30,
+        maxPct: 50,
+        targetMidpointPct: 40,
+        allocatedMidpointCents: 153602,
+        reasonCode: "BASE_BALANCED_BAND",
+      },
+    ],
+    stagingSchedule: [
+      { trancheNumber: 1, executeAfterDays: 0, amountCents: 96002 },
+      { trancheNumber: 2, executeAfterDays: 30, amountCents: 96001 },
+      { trancheNumber: 3, executeAfterDays: 60, amountCents: 96001 },
+      { trancheNumber: 4, executeAfterDays: 90, amountCents: 96001 },
+    ],
+    disclaimerId: DISCLAIMER_ID_V1,
+    disclaimerText: DISCLAIMER_TEXT_V1,
+  },
+  deltaSafeSurplusCents: -35995,
+  deltaBufferMonths: 0.12,
+};
+
+// Live "$1,200.00 Sandbox payment" moment (fee $35.30, net $1,164.70) landing in the
+// in-progress month of 2026-10: the completed-month stats are unchanged and the safe
+// surplus rises from $4,200.00 to $5,364.70 exactly as the demo narrative says.
+export const exampleAppEvent: AppEvent = {
+  eventId: "WH-DEMO-PAYMENT-001",
+  type: "payment.received",
+  at: "2026-10-25T10:00:00Z",
+  merchantId: "live_sandbox",
+  deltaNetCents: 116470,
+  updatedSummary: {
+    merchantId: "live_sandbox",
+    asOf: "2026-10-25T10:00:00Z",
+    windows: {
+      week: {
+        windowLabel: "week",
+        startDate: "2026-10-18T10:00:00Z",
+        endDate: "2026-10-25T10:00:00Z",
+        grossIncomeCents: 120000,
+        feesCents: 3530,
+        refundsCents: 0,
+        chargebacksCents: 0,
+        withdrawalsCents: 0,
+        netCashFlowCents: 116470,
+        transactionCount: 1,
+      },
+      month: {
+        windowLabel: "month",
+        startDate: "2026-09-25T10:00:00Z",
+        endDate: "2026-10-25T10:00:00Z",
+        grossIncomeCents: 120000,
+        feesCents: 3530,
+        refundsCents: 0,
+        chargebacksCents: 0,
+        withdrawalsCents: 0,
+        netCashFlowCents: 116470,
+        transactionCount: 1,
+      },
+      year: {
+        windowLabel: "year",
+        startDate: "2025-10-25T10:00:00Z",
+        endDate: "2026-10-25T10:00:00Z",
+        grossIncomeCents: 2024000,
+        feesCents: 39530,
+        refundsCents: 130000,
+        chargebacksCents: 20000,
+        withdrawalsCents: 1100000,
+        netCashFlowCents: 1834470,
+        transactionCount: 27,
+      },
+    },
+    monthlySeries: exampleCashFlowSummary.monthlySeries,
+    completedMonthsCount: 12,
+    baselineMonthlyNetCents: 160000,
+    meanMonthlyNetCents: 160000,
+    stdDevMonthlyNetCents: 40045.42874831488,
+    cv: 0.2503,
+    trendSlopeCentsPerMonth: -2643.36,
+    refundRate90d: 0.25,
+    openDisputes: exampleOpenDisputesSummary,
+    excludedNonUsdCount: 0,
+  },
+  updatedSurplus: {
+    merchantId: "live_sandbox",
+    modelStatus: "OK",
+    availableBalanceCents: 1966470,
+    balanceSource: "LIVE_WEBHOOK_ADJUSTED",
+    monthlyObligationsCents: 300000,
+    obligationsSource: "USER_INPUT",
+    riskProfile: "BALANCED",
+    cv: 0.2503,
+    bufferMonths: 4.5,
+    bufferTargetCents: 1350000,
+    riskReserveCents: 80000,
+    safeSurplusCents: 536470,
+    stagingTrancheCount: 4,
+    stagingScheduleCents: [134119, 134117, 134117, 134117],
+    breakdownLines: [
+      {
+        code: "AVAILABLE_BALANCE",
+        label: "Available PayPal balance",
+        formulaText: "availableBalanceCents (source: LIVE_WEBHOOK_ADJUSTED) = 1966470",
+        valueCents: 1966470,
+        unit: "USD_CENTS",
+      },
+      {
+        code: "BASELINE_MONTHLY_NET",
+        label: "Baseline monthly net (median)",
+        formulaText: "median(monthly net over 12 completed months) = 160000",
+        valueCents: 160000,
+        unit: "USD_CENTS",
+      },
+      {
+        code: "VOLATILITY_CV",
+        label: "Income volatility (CV)",
+        formulaText: "round4(sample std dev / max(mean, baseline)) = 40045.43 / 160000 = 0.2503",
+        valueScalar: 0.2503,
+        unit: "RATIO",
+      },
+      {
+        code: "BUFFER_MONTHS",
+        label: "Cash buffer runway",
+        formulaText: "round2(clamp(3 + 6 * cv, 3, 9)) = clamp(3 + 6 * 0.2503, 3, 9) = 4.5",
+        valueScalar: 4.5,
+        unit: "MONTHS",
+      },
+      {
+        code: "BUFFER_TARGET",
+        label: "Cash buffer target",
+        formulaText:
+          "round(bufferMonths * monthlyObligationsCents) = round(4.5 * 300000) = 1350000",
+        valueCents: 1350000,
+        unit: "USD_CENTS",
+      },
+      {
+        code: "OPEN_DISPUTE_RESERVE",
+        label: "Open dispute reserve (unheld)",
+        formulaText:
+          "unheld open dispute exposure not already withheld from the available balance (count: 1) = 40000",
+        valueCents: 40000,
+        unit: "USD_CENTS",
+      },
+      {
+        code: "EXPECTED_REFUND_EXPOSURE",
+        label: "Expected refund exposure (90-day rate)",
+        formulaText:
+          "round(round4(150000 / 600000, 4) * max(baseline, 0)) = round(0.25 * 160000) = 40000",
+        valueCents: 40000,
+        unit: "USD_CENTS",
+      },
+      {
+        code: "TOTAL_RISK_RESERVE",
+        label: "Total risk reserve",
+        formulaText: "open dispute reserve + expected refund exposure = 40000 + 40000 = 80000",
+        valueCents: 80000,
+        unit: "USD_CENTS",
+      },
+      {
+        code: "SAFE_SURPLUS",
+        label: "Safe-to-invest surplus",
+        formulaText:
+          "max(0, available balance - buffer target - risk reserve) = max(0, 1966470 - 1350000 - 80000) = 536470",
+        valueCents: 536470,
+        unit: "USD_CENTS",
+      },
+      {
+        code: "STAGED_MONTHLY_TRANCHE",
+        label: "First staging tranche",
+        formulaText:
+          "floor(safe surplus / 4) with remainder added to tranche 1 (of 4), executeAfterDays = (k - 1) * 30 = 134119",
+        valueCents: 134119,
+        unit: "USD_CENTS",
+      },
+    ],
+  },
+  updatedPlan: {
+    merchantId: "live_sandbox",
+    riskProfile: "BALANCED",
+    safeSurplusCents: 536470,
+    highVolatilityShiftApplied: false,
+    bands: [
+      {
+        assetClass: "CASH_MMF",
+        label: "Cash and Money Market",
+        minPct: 20,
+        maxPct: 40,
+        targetMidpointPct: 30,
+        allocatedMidpointCents: 160941,
+        reasonCode: "BASE_BALANCED_BAND",
+      },
+      {
+        assetClass: "SHORT_TERM_BONDS",
+        label: "Short-Term Treasuries and Bonds",
+        minPct: 20,
+        maxPct: 40,
+        targetMidpointPct: 30,
+        allocatedMidpointCents: 160941,
+        reasonCode: "BASE_BALANCED_BAND",
+      },
+      {
+        assetClass: "BROAD_EQUITY_INDEX",
+        label: "Broad Diversified Equity Index",
+        minPct: 30,
+        maxPct: 50,
+        targetMidpointPct: 40,
+        allocatedMidpointCents: 214588,
+        reasonCode: "BASE_BALANCED_BAND",
+      },
+    ],
+    stagingSchedule: [
+      { trancheNumber: 1, executeAfterDays: 0, amountCents: 134119 },
+      { trancheNumber: 2, executeAfterDays: 30, amountCents: 134117 },
+      { trancheNumber: 3, executeAfterDays: 60, amountCents: 134117 },
+      { trancheNumber: 4, executeAfterDays: 90, amountCents: 134117 },
+    ],
+    disclaimerId: DISCLAIMER_ID_V1,
+    disclaimerText: DISCLAIMER_TEXT_V1,
+  },
+};
