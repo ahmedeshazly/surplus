@@ -33,7 +33,19 @@ _Pending._
 
 ### S-4 Webhook signature verification (R1)
 
-_Pending._
+Script: `packages/paypal/src/spikes/s4_webhook.ts`.
+**Status: code complete, awaiting live run** (ngrok tunnel + `PAYPAL_WEBHOOK_ID` needed).
+
+Expected verification flow:
+
+1. POST /webhook -> collect raw body (no prior parse).
+2. Extract headers: `PAYPAL-TRANSMISSION-ID`, `PAYPAL-TRANSMISSION-TIME`,
+   `PAYPAL-CERT-URL`, `PAYPAL-TRANSMISSION-SIG`, `PAYPAL-AUTH-ALGO`.
+3. POST /v1/notifications/verify-webhook-signature with those headers,
+   `PAYPAL_WEBHOOK_ID`, and the parsed event body.
+4. `verification_status === "SUCCESS"` -> accept; anything else -> 400, zero DB write.
+
+`verification_status: "SUCCESS"` will be recorded here once the live run completes.
 
 ### S-5 MCP read-only allowlist and sanitizer (R4)
 
