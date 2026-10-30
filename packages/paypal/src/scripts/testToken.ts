@@ -1,14 +1,14 @@
 /**
  * Owner: R1. Task K-3: Sandbox OAuth client-credentials token check.
  *
- * Prints ONLY success/failure and token expiry – never the token itself.
+ * Prints ONLY success/failure and token expiry - never the token itself.
  * Usage: pnpm --filter @surplus/paypal test:token
  */
 
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 
-// Load .env from repo root (optional – CI can skip)
+// Load .env from repo root (optional - CI can skip)
 try {
   const envPath = resolve(
     new URL("../../../../.env", import.meta.url).pathname.slice(
@@ -57,7 +57,7 @@ try {
   });
 } catch (err) {
   const msg = err instanceof Error ? err.message : String(err);
-  console.error(`FAIL: Network error contacting ${apiBase} – ${msg}`);
+  console.error(`FAIL: Network error contacting ${apiBase} - ${msg}`);
   process.exit(1);
 }
 
@@ -71,7 +71,7 @@ if (!res.ok) {
     detail = await res.text().catch(() => "");
   }
   console.error(
-    `FAIL: PayPal responded ${res.status} ${res.statusText}${detail ? ` – ${detail}` : ""}`,
+    `FAIL: PayPal responded ${res.status} ${res.statusText}${detail ? ` - ${detail}` : ""}`,
   );
   process.exit(1);
 }

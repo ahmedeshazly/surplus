@@ -65,6 +65,7 @@ All entries below are Oct 24–25, 2026 (Africa/Cairo), R3, tasks K-4 / F-6 / F-
 ## Open questions
 
 _None yet._
+- 2026-10-25T19:55:00+02:00 | K-3 | R1 | Merged sandbox oauth test:token script from origin/r1/k-3-sandbox-setup. All 6 members can run pnpm --filter @surplus/paypal test:token once creds in env.
 
 - 2026-10-25T20:00:00+02:00 | STARTUP | R1 | On main. K-2 merged. Next: merge/complete K-3, S-1, S-4, F-1 from origin branches as they exist, then proceed to F-9 onward per task order.
 
