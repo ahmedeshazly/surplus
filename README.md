@@ -63,4 +63,4 @@ If the repo lives in a GitHub organization, the gitleaks action needs a free `GI
 
 ## License
 
-Apache-2.0. See `LICENSE`.
+Apache-2.0. See `LICENSE`
