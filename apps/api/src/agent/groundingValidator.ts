@@ -16,8 +16,9 @@ const BANNED_INSTRUMENTS =
   /\b(S&P\s*500|SPY|VOO|QQQ|VTI|AAPL|MSFT|NVDA|TSLA|BTC|ETH|Bitcoin|Ethereum|Vanguard|BlackRock|Fidelity)\b/gi;
 const BANNED_PROMISES =
   /\b(guarantee[ds]?|risk-free|will earn|we have invested|executed trade|transferred funds)\b/gi;
-const CURRENCY_TOKEN = /\$\s?\d[\d,]*(?:\.\d{1,2})?/g;
-const PERCENT_TOKEN = /-?\d+(?:\.\d+)?%/g;
+const CURRENCY_TOKEN = /-?\$\s?\d[\d,]*(?:\.\d+)?/g;
+const PERCENT_TOKEN = /-?\d+(?:\.\d+)?%(?!\d)/g;
+const STRUCTURAL_CONSTANTS = [3, 4, 6, 9, 10, 12, 31, 90, 100, 2025, 2026] as const;
 
 interface EvidenceRegistry {
   raw: number[];
@@ -52,6 +53,17 @@ function parsedNumber(token: string): number {
   return Number(token.replace(/[$,%\s]/g, ""));
 }
 
+function validCurrencyShape(token: string): boolean {
+  const numeric = token.replace(/[-$\s]/g, "");
+  return /^(?:\d+|\d{1,3}(?:,\d{3})+)(?:\.\d{1,2})?$/.test(numeric);
+}
+
+function citationMatches(citation: CitedMetric, candidate: number): boolean {
+  const difference = Math.abs(citation.rawValue - candidate);
+  if (/_cents$/i.test(citation.metricCode)) return difference <= 1;
+  return difference <= Math.max(0.001, Math.abs(candidate) * 0.001);
+}
+
 function uniqueMatches(text: string, pattern: RegExp): string[] {
   pattern.lastIndex = 0;
   return [...new Set(text.match(pattern) ?? [])];
@@ -65,6 +77,7 @@ export function validateAdvisorOutput(
   const mismatches = new Set<string>();
   const registry: EvidenceRegistry = { raw: [], currency: [], percentages: [] };
   for (const output of toolOutputs) collectEvidence(output, registry);
+  registry.raw.push(...STRUCTURAL_CONSTANTS);
 
   if (draft.disclaimerId !== DISCLAIMER_ID_V1) {
     mismatches.add(`disclaimer:${draft.disclaimerId}`);
@@ -80,7 +93,10 @@ export function validateAdvisorOutput(
 
   for (const token of uniqueMatches(text, CURRENCY_TOKEN)) {
     const value = parsedNumber(token);
-    if (!registry.currency.some((candidate) => closeEnough(value, candidate))) {
+    if (
+      !validCurrencyShape(token) ||
+      !registry.currency.some((candidate) => closeEnough(value, candidate))
+    ) {
       mismatches.add(token);
     }
   }
@@ -91,7 +107,7 @@ export function validateAdvisorOutput(
     }
   }
   for (const citation of draft.citedNumbers) {
-    if (!registry.raw.some((candidate) => closeEnough(citation.rawValue, candidate))) {
+    if (!registry.raw.some((candidate) => citationMatches(citation, candidate))) {
       mismatches.add(`${citation.metricCode}:${citation.rawValue}`);
     }
   }

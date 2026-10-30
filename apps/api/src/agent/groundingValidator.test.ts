@@ -55,4 +55,50 @@ describe("validateAdvisorOutput", () => {
       ]),
     );
   });
+
+  it("allows explicitly whitelisted structural constants in citations", () => {
+    const result = validateAdvisorOutput(
+      {
+        ...draft("The analysis uses 12 completed months."),
+        citedNumbers: [
+          { metricCode: "completed_months", rawValue: 12, formattedText: "12 months" },
+        ],
+      },
+      outputs,
+    );
+    expect(result.valid).toBe(true);
+  });
+
+  it("uses a strict one-cent tolerance for money citations", () => {
+    const accepted = validateAdvisorOutput(
+      {
+        ...draft("Safe surplus is $4,200.00."),
+        citedNumbers: [
+          { metricCode: "safe_surplus_cents", rawValue: 420001, formattedText: "$4,200.00" },
+        ],
+      },
+      outputs,
+    );
+    const rejected = validateAdvisorOutput(
+      {
+        ...draft("Safe surplus is $4,200.00."),
+        citedNumbers: [
+          { metricCode: "safe_surplus_cents", rawValue: 420002, formattedText: "$4,200.00" },
+        ],
+      },
+      outputs,
+    );
+    expect(accepted.valid).toBe(true);
+    expect(rejected.mismatches).toContain("safe_surplus_cents:420002");
+  });
+
+  it("does not accept a grounded currency prefix followed by extra decimal digits", () => {
+    const result = validateAdvisorOutput(draft("Safe surplus is $4,200.000."), outputs);
+    expect(result.valid).toBe(false);
+  });
+
+  it("checks unsupported percentages followed by sentence punctuation", () => {
+    const result = validateAdvisorOutput(draft("The projected return is 73.37%."), outputs);
+    expect(result.mismatches).toContain("73.37%");
+  });
 });
