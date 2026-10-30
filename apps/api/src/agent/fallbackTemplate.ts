@@ -1,4 +1,9 @@
-import type { AllocationPlan, CashFlowSummary, CitedMetric, SurplusResult } from "@surplus/contracts";
+import type {
+  AllocationPlan,
+  CashFlowSummary,
+  CitedMetric,
+  SurplusResult,
+} from "@surplus/contracts";
 import { DISCLAIMER_ID_V1 } from "@surplus/contracts";
 import type { AdvisorDraft } from "./groundingValidator.js";
 
@@ -27,8 +32,7 @@ export function buildDeterministicTemplateNarrative(
   const bufferTarget = money(surplus.bufferTargetCents);
   const monthlyNet = money(summary.baselineMonthlyNetCents);
   const allocationLines = plan.bands.map(
-    (band) =>
-      `- ${band.label}: ${band.targetMidpointPct}% (${money(band.allocatedMidpointCents)})`,
+    (band) => `- ${band.label}: ${band.targetMidpointPct}% (${money(band.allocatedMidpointCents)})`,
   );
   const stagingLines = plan.stagingSchedule.map(
     (entry) =>
@@ -68,7 +72,11 @@ export function buildDeterministicTemplateNarrative(
         ),
       ]),
       ...plan.stagingSchedule.map((entry) =>
-        cited(`staging_tranche_${entry.trancheNumber}_cents`, entry.amountCents, money(entry.amountCents)),
+        cited(
+          `staging_tranche_${entry.trancheNumber}_cents`,
+          entry.amountCents,
+          money(entry.amountCents),
+        ),
       ),
     ],
     disclaimerId: DISCLAIMER_ID_V1,
