@@ -20,7 +20,12 @@ _Pending._
 
 ### S-1 Transaction Search, Balances, Disputes (R1)
 
-_Pending._
+Script: `packages/paypal/src/spikes/s1_search.ts`.
+**Status: code complete, awaiting live run** (credentials not yet in `.env`).
+
+Free-text fields (`transaction_subject`, `transaction_note`, `custom_field`,
+`payer_name`, `messages`) are stripped in the client layer (`types.ts` does not
+include them) and again in R2's normalizer (defense in depth).
 
 ### S-2 Orders v2 capture and hybrid store (R2)
 
