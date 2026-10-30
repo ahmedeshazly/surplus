@@ -1,2 +1,7 @@
-// Shared barrel. R1 exports from ./client, R2 exports from ./sources.
-export {};
+/**
+ * Owner: R1. @surplus/paypal package root exports.
+ *
+ * Re-exports the public PaypalClient API.
+ * R2's sources/ module is also in this package but has its own exports.
+ */
+export * from "./client/index.js";
