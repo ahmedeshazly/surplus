@@ -18,10 +18,11 @@ import type { MerchantDataset } from "../routes/dataset.js";
 import { buildDeterministicTemplateNarrative } from "./fallbackTemplate.js";
 import type { AdvisorDraft } from "./groundingValidator.js";
 import { validateAdvisorOutput } from "./groundingValidator.js";
+import { defaultLastGoodPlanCache, type LastGoodPlanCache } from "./lastGoodPlanCache.js";
 
 const PRIMARY_MODEL = "gemini-2.5-flash";
 const FALLBACK_MODEL = "gpt-4o-mini";
-const MODEL_TIMEOUT_MS = 7_000;
+export const MODEL_TIMEOUT_MS = 7_000;
 export const ADVISOR_ENV_KEYS = {
   google: "GOOGLE_GENERATIVE_AI_API_KEY",
   openai: "OPENAI_API_KEY",
@@ -64,6 +65,8 @@ export type AdvisorDraftGenerator = (input: {
 export interface RunAdvisorTurnOptions {
   generateDraft?: AdvisorDraftGenerator;
   now?: () => Date;
+  planCache?: LastGoodPlanCache;
+  modelTimeoutMs?: number;
 }
 
 function productionGenerator(): AdvisorDraftGenerator {
@@ -71,33 +74,26 @@ function productionGenerator(): AdvisorDraftGenerator {
   const openai = createOpenAI({ apiKey: process.env[ADVISOR_ENV_KEYS.openai] });
 
   return async ({ provider, evidence, question, rejectedTokens }) => {
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), MODEL_TIMEOUT_MS);
-    try {
-      const result = await generateObject({
-        model: provider === "primary" ? google(PRIMARY_MODEL) : openai(FALLBACK_MODEL),
-        schema: AdvisorDraftSchema,
-        mode: "json",
-        abortSignal: controller.signal,
-        system: [
-          "You are an educational PayPal cash-flow advisor.",
-          "Use only the supplied deterministic evidence. Never calculate or invent a number.",
-          "Never name a security, ticker, fund provider, cryptocurrency, or promise a return.",
-          `Always return disclaimerId ${DISCLAIMER_ID_V1}.`,
-          "Every cited rawValue must be copied exactly from the evidence.",
-          rejectedTokens.length > 0
-            ? `A prior draft was rejected. Do not emit these exact tokens: ${JSON.stringify(rejectedTokens)}.`
-            : "This is the first generation attempt.",
-        ].join("\n"),
-        prompt: JSON.stringify({
-          question: question ?? "Explain my educational surplus plan.",
-          evidence,
-        }),
-      });
-      return AdvisorDraftSchema.parse(result.object);
-    } finally {
-      clearTimeout(timeout);
-    }
+    const result = await generateObject({
+      model: provider === "primary" ? google(PRIMARY_MODEL) : openai(FALLBACK_MODEL),
+      schema: AdvisorDraftSchema,
+      mode: "json",
+      system: [
+        "You are an educational PayPal cash-flow advisor.",
+        "Use only the supplied deterministic evidence. Never calculate or invent a number.",
+        "Never name a security, ticker, fund provider, cryptocurrency, or promise a return.",
+        `Always return disclaimerId ${DISCLAIMER_ID_V1}.`,
+        "Every cited rawValue must be copied exactly from the evidence.",
+        rejectedTokens.length > 0
+          ? `A prior draft was rejected. Do not emit these exact tokens: ${JSON.stringify(rejectedTokens)}.`
+          : "This is the first generation attempt.",
+      ].join("\n"),
+      prompt: JSON.stringify({
+        question: question ?? "Explain my educational surplus plan.",
+        evidence,
+      }),
+    });
+    return AdvisorDraftSchema.parse(result.object);
   };
 }
 
@@ -158,19 +154,41 @@ async function generateWithProviderFallback(
   generator: AdvisorDraftGenerator,
   request: Omit<Parameters<AdvisorDraftGenerator>[0], "provider">,
   failures: string[],
+  timeoutMs: number,
 ): Promise<AdvisorDraft | undefined> {
+  const invoke = async (provider: AdvisorProvider): Promise<AdvisorDraft> => {
+    let timeout: ReturnType<typeof setTimeout> | undefined;
+    try {
+      return await Promise.race([
+        generator({ ...request, provider }),
+        new Promise<never>((_resolve, reject) => {
+          timeout = setTimeout(() => reject(new ModelTimeoutError()), timeoutMs);
+        }),
+      ]);
+    } finally {
+      if (timeout) clearTimeout(timeout);
+    }
+  };
+
   try {
-    return await generator({ ...request, provider: "primary" });
-  } catch {
+    return await invoke("primary");
+  } catch (error) {
+    if (error instanceof ModelTimeoutError) {
+      failures.push("model:timeout");
+      return undefined;
+    }
     failures.push("model:primary_failed");
   }
   try {
-    return await generator({ ...request, provider: "fallback" });
-  } catch {
+    return await invoke("fallback");
+  } catch (error) {
+    if (error instanceof ModelTimeoutError) failures.push("model:timeout");
     failures.push("model:fallback_failed");
     return undefined;
   }
 }
+
+class ModelTimeoutError extends Error {}
 
 function response(
   input: RunAdvisorTurnInput,
@@ -197,6 +215,7 @@ export async function runAdvisorTurn(
   options: RunAdvisorTurnOptions = {},
 ): Promise<AdvisorResponse> {
   const { summary, surplus, plan, toolTrace } = buildEvidence(input);
+  (options.planCache ?? defaultLastGoodPlanCache).set(plan);
   const evidence = { summary, surplus, plan };
   const outputs = [summary, surplus, plan];
   const generator = options.generateDraft ?? productionGenerator();
@@ -206,6 +225,7 @@ export async function runAdvisorTurn(
     generator,
     { evidence, question: input.question, rejectedTokens: [] },
     mismatches,
+    options.modelTimeoutMs ?? MODEL_TIMEOUT_MS,
   );
   if (first) {
     const validation = validateAdvisorOutput(first, outputs);
@@ -224,6 +244,7 @@ export async function runAdvisorTurn(
       generator,
       { evidence, question: input.question, rejectedTokens: validation.mismatches },
       mismatches,
+      options.modelTimeoutMs ?? MODEL_TIMEOUT_MS,
     );
     if (regenerated) {
       const regeneratedValidation = validateAdvisorOutput(regenerated, outputs);

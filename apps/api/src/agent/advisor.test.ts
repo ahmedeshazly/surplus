@@ -9,6 +9,7 @@ import { describe, expect, it, vi } from "vitest";
 import { ADVISOR_ENV_KEYS, runAdvisorTurn } from "./advisor.js";
 import type { AdvisorDraftGenerator, RunAdvisorTurnInput } from "./advisor.js";
 import { buildDeterministicTemplateNarrative } from "./fallbackTemplate.js";
+import { InMemoryLastGoodPlanCache } from "./lastGoodPlanCache.js";
 
 const input: RunAdvisorTurnInput = {
   merchantId: "live_sandbox",
@@ -109,6 +110,23 @@ describe("runAdvisorTurn", () => {
       "model:fallback_failed",
     ]);
     expect(result.narrativeMarkdown).toContain("Educational surplus view");
+  });
+
+  it("enforces the model timeout at the orchestration boundary and preserves the plan", async () => {
+    const cache = new InMemoryLastGoodPlanCache();
+    const generator = vi.fn<AdvisorDraftGenerator>(() => new Promise(() => undefined));
+    const result = await runAdvisorTurn(input, {
+      generateDraft: generator,
+      modelTimeoutMs: 5,
+      planCache: cache,
+      now,
+    });
+
+    expect(result.validatorStatus).toBe("FALLBACK_TEMPLATE");
+    expect(result.validatorMismatchesCaught).toContain("model:timeout");
+    expect(generator).toHaveBeenCalledTimes(1);
+    expect(cache.get(input.merchantId)?.merchantId).toBe(input.merchantId);
+    expect(cache.get(input.merchantId)?.safeSurplusCents).toBeGreaterThanOrEqual(0);
   });
 
   it("falls back after one regeneration still contains a banned ticker", async () => {
