@@ -31,9 +31,14 @@ export async function runSpike(): Promise<string> {
   const now = new Date().toISOString();
   const monthBucket = now.slice(0, 7);
   const amountCents = Math.round(parseFloat(capture.amount.value) * 100);
-  const hash = crypto.createHash("sha256").update(capture.payer.email_address.toLowerCase()).digest("hex").slice(0, 8);
+  const hash = crypto
+    .createHash("sha256")
+    .update(capture.payer.email_address.toLowerCase())
+    .digest("hex")
+    .slice(0, 8);
 
-  db.prepare(`
+  db.prepare(
+    `
     INSERT INTO normalized_transactions (
       id, merchantId, occurredAt, monthBucket, kind,
       grossCents, feeCents, netCents, currency, status,
@@ -43,7 +48,8 @@ export async function runSpike(): Promise<string> {
       @grossCents, 0, @grossCents, 'USD', @status,
       @counterpartyHash, 'live'
     ) ON CONFLICT(id) DO NOTHING;
-  `).run({
+  `,
+  ).run({
     id: capture.id,
     merchantId: "live_sandbox",
     occurredAt: now,
