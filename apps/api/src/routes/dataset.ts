@@ -41,7 +41,7 @@ export function asOfFor(merchantId: MerchantId, now: Date = new Date()): string 
 }
 
 /** TEMPORARY loader. Replaced by R2's getMerchantDataset on merge. */
-export const exampleDatasetLoader: DatasetLoader = (merchantId) => ({
+export const exampleDatasetLoader = (merchantId: MerchantId): MerchantDataset => ({
   transactions: [{ ...exampleNormalizedTransaction, merchantId }],
   availableBalanceCents: exampleSurplusResult.availableBalanceCents,
   balanceSource: "FIXTURE",

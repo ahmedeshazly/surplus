@@ -190,3 +190,213 @@ ew Date().toISOString(). Implemented in pps/api/src/routes/dataset.ts.
 - **R2:** export MerchantDataset + getMerchantDataset(merchantId) from packages/paypal/src/sources (shape used: transactions, availableBalanceCents, balanceSource, openDisputes, excludedNonUsdCount).
 - **R3:** confirm the fixture sOf anchor; optionally adopt the request schemas into @surplus/contracts.
 - **R4:** export unAdvisorTurn from pps/api/src/agent with the injectable shape used here.
+
+### R1 decisions and spike log (K-3, S-1, S-4, F-1, C-12, H-2 draft)
+### 2026-10-25 K-3 - Sandbox token check (R1)
+
+Script: `packages/paypal/src/scripts/testToken.ts`.
+Prints OK/FAIL and expiry seconds only; never the token value.
+Awaiting human action: PayPal REST app creation and credential placement in `.env`.
+
+### 2026-10-25 S-1 - Transaction Search, Balances, Disputes spike (R1)
+
+Script: `packages/paypal/src/spikes/s1_search.ts`.
+**Status: code complete, awaiting live run** (credentials not yet in `.env`).
+
+Expected response shapes (from PayPal API docs and K-2 research):
+
+**GET /v1/reporting/transactions:**
+```
+{
+  transaction_details: [
+    {
+      transaction_info: {
+        transaction_id: string,
+        transaction_event_code: string,   // e.g. "T0006"
+        transaction_initiation_date: string,  // RFC3339
+        transaction_amount: { currency_code: string, value: string },
+        fee_amount: { currency_code: string, value: string } | undefined,
+        transaction_status: string,
+        // FREE TEXT - stripped: transaction_subject, transaction_note, custom_field
+      },
+      payer_info: {
+        account_id: string,
+        email_address: string,   // PII - normalizer hashes this
+        // FREE TEXT - stripped: payer_name.given_name, payer_name.surname
+      },
+      cart_info: { item_details: [...] }  // item_name is FREE TEXT - stripped
+    }
+  ],
+  page: number,
+  total_items: number,
+  total_pages: number,
+  start_date: string,
+  end_date: string
+}
+```
+
+**GET /v1/reporting/balances:**
+```
+{
+  balances: [
+    {
+      currency: string,
+      primary: boolean,
+      available_balance: { currency_code: string, value: string },
+      withheld_balance: { currency_code: string, value: string } | undefined,
+      total_balance: { currency_code: string, value: string }
+    }
+  ],
+  as_of_time: string
+}
+```
+
+**GET /v1/customer/disputes:**
+```
+{
+  items: [
+    {
+      dispute_id: string,
+      create_time: string,
+      status: string,   // e.g. "UNDER_REVIEW", "OPEN_INQUIRIES", "REQUIRED_ACTION"
+      dispute_amount: { currency_code: string, value: string },
+      reason: string,
+      // FREE TEXT stripped: messages, dispute_note, buyer_response_due_date
+    }
+  ],
+  links: [{ href: string, rel: string, method: string }]
+}
+```
+
+Decision: free text fields (`transaction_subject`, `transaction_note`, `custom_field`,
+`payer_name`, `messages`) are stripped in the client layer (types.ts does not include
+them) and again in R2's normalizer (defense in depth).
+
+### 2026-10-25 S-4 - Webhook spike (R1)
+
+Script: `packages/paypal/src/spikes/s4_webhook.ts`.
+**Status: code complete, awaiting live run** (ngrok tunnel + PAYPAL_WEBHOOK_ID needed).
+
+Expected verification flow:
+1. POST /webhook -> collect raw body (no prior parse).
+2. Extract headers: PAYPAL-TRANSMISSION-ID, PAYPAL-TRANSMISSION-TIME,
+   PAYPAL-CERT-URL, PAYPAL-TRANSMISSION-SIG, PAYPAL-AUTH-ALGO.
+3. POST /v1/notifications/verify-webhook-signature with those headers +
+   webhook_id (PAYPAL_WEBHOOK_ID) + parsed event body.
+4. verification_status === "SUCCESS" -> accept; anything else -> 400, zero DB write.
+
+`verification_status: "SUCCESS"` will be recorded here once the live run completes.
+
+### 2026-10-25 F-1 - PaypalClient decisions (R1)
+
+**Framework choice:** Pure Node 20 built-in `fetch` + `node:crypto`. No extra HTTP
+libraries. Reason: project rules prefer built-ins; Node 20 fetch is production-stable.
+
+**Express vs Fastify:** Choosing **Express** for `apps/api`. Reason: simpler raw-body
+middleware story (`express.raw()`) which is critical for the webhook route that must
+read the exact bytes before any parsing. Fastify's `addContentTypeParser` achieves
+the same but with more ceremony; the Express approach is more readable for the team.
+Recorded here as the official framework choice.
+
+**Token cache:** Single in-flight refresh using a pending-promise guard. After a 401
+the cache is invalidated and a single retry occurs; repeated 401s surface as
+`PayPalError("OAUTH_FAILED")`.
+
+**31-day window guard:** `searchTransactions` throws `PayPalError("WINDOW_TOO_LARGE")`
+if `endDate - startDate > 31 days`. R2's windowed loader calls this in 31-day chunks.
+
+**Backoff:** Full-jitter exponential, base 500ms, cap 30s, 5 attempts by default.
+Retryable: network errors, 429, 5xx. Not retryable: other 4xx.
+
+**Free text defense:** The typed interface in `types.ts` does NOT declare
+`transaction_subject`, `transaction_note`, `custom_field`, `payer_name`, or `messages`.
+Fields that are not declared are silently dropped during JSON deserialization.
+R2's normalizer applies a second strip as defense in depth.
+
+**Dispute fields returned:** `disputeId`, `status`, `disputeAmount` (currency + value),
+`createTime` only. All other fields including `messages`, `dispute_note` are absent.
+
+### 2026-10-25 F-9 - API routes decisions (R1)
+
+Framework: **Express** (see F-1 decision above).
+
+**asOf anchoring:**
+- Fixture personas (`persona_*`): anchor `asOf` to `"2026-10-24T21:00:00Z"` (Gate 0
+  timestamp). This makes golden test values reproducible regardless of when the server
+  runs. Decision flagged for R2 and R3 to confirm; recorded under "Requests to other
+  owners" in the F-9 PR.
+- `live_sandbox`: use `new Date().toISOString()` (current time).
+
+**Requests to other owners:**
+- R2: confirm `getMerchantDataset(merchantId)` signature and return type
+  `{ transactions, availableBalanceCents, balanceSource, openDisputes, excludedNonUsdCount }`.
+  Routes currently code against a stub in `apps/api/src/routes/stubs.ts`.
+- R3: confirm `computeCashFlowSummary`, `computeSurplus`, `computeAllocationPlan`,
+  `runScenarioComparison` function signatures and that they accept `asOf: string`.
+  Routes code against a stub until R3's package merges.
+- R3: confirm that the local thin Zod wrappers for query params
+  (`merchantIdSchema`, `scenarioInputSchema`) do not need to live in `@surplus/contracts`.
+
+### 2026-10-25 C-5 - Webhooks + SSE decisions (R1)
+
+**SQLite persistence on Render (C-12):** Default strategy is reseed on every boot
+(no Render persistent disk, which costs $7/month). On restart, `webhook_events` rows
+from live payments are lost. The live demo survives because judges do a fresh payment
+after each demo. If needed for the video, R1 can add the `persistentDisk` section to
+`render.yaml` (a human-only paid action, listed in the checklist).
+
+### 2026-10-25 H-2 - Security audit notes (R1, to be completed Nov 5-9)
+
+Findings to audit: secrets in git history (gitleaks), CORS origin lockdown,
+admin reset endpoint constant-time compare, webhook signature verification before
+any DB write, Zod validation on all routes, log hygiene (no tokens, no free text,
+no payer PII in any log line).
+
+### 2026-10-25 C-5 webhooks and SSE (R1)
+
+- POST /api/webhooks/paypal is mounted before JSON parsing and uses express.raw; signature verification runs on the exact bytes before any store call.
+- Order enforced: verify -> parse -> dedupe by event id -> single atomic apply -> recompute -> broadcast -> 200. Unknown event types return 200 and write nothing; duplicates return 200 with no double count; invalid signatures return 400 with zero writes.
+- Live merchant: every webhook is attributed to live_sandbox (PayPal does not echo our merchant id). Recorded as a deliberate scope decision for the demo.
+- Event types handled: PAYMENT.CAPTURE.COMPLETED -> payment.received, PAYMENT.CAPTURE.REFUNDED (and PAYMENT.CAPTURE.REFUND) -> refund.processed. Each broadcasts the specific event plus a plan.updated event.
+- Free text is never read: custom_id, notes, memos and payer names are ignored. Payer email is SHA-256 hashed to 8 hex chars at the edge.
+- **TEMPORARY (request to R2):** apps/api/src/routes/webhookStore.ts provides an in-memory store and a minimal normalizer. Replace with R2's better-sqlite3 db + normalizer; the controller depends on the InMemoryWebhookStore interface, so the swap is local to server.ts.
+- GET /api/events: text/event-stream, no-cache and no-transform, X-Accel-Buffering off, 15s heartbeat from SseHub.startHeartbeat, per-merchant subscribers, unsubscribe on req close.
+- Tests: 9 webhook tests (valid capture, raw-body verification, tampered signature with zero writes, duplicate id, refund, unknown type, missing headers, malformed amount) plus 9 SSE hub tests. 38 API tests total.
+### 2026-10-25 C-12 Render deploy (R1)
+
+- render.yaml defines surplus-api and surplus-web (Node 20, free plan, oregon, healthCheckPath /api/health). Secrets use sync: false; PAYPAL_API_BASE is fixed to Sandbox.
+- API binds HOST=0.0.0.0 and reads PORT (Render-injected). WEB_ORIGIN is an exact-match CORS allowlist; NEXT_PUBLIC_API_URL is set on the web service after the API URL is known.
+- Seed on boot: apps/api/src/routes/seed.ts seeds the store before listen; POST /api/admin/reset reseeds on demand. It is mounted only when ADMIN_RESET_TOKEN is non-empty.
+- Admin reset compares SHA-256 digests with timingSafeEqual, so neither contents nor length leak. Missing or wrong header returns 401 with a safe body; the reset callback runs only on success.
+- SQLite persistence decision: no Render disk, reseed on every boot. Live webhook rows (webhook_events, live transactions, adjusted balance) are lost on restart; the demo performs a fresh Sandbox payment after each deploy. A persistent disk section can be added later but costs money.
+- TEMPORARY: seed.ts is an adapter; replace with R2's scripts/seed.ts hybrid seeder when it lands.
+- Tests: 5 admin tests (missing, same-length wrong, different-length wrong, correct, unconfigured -> 404). Full workspace build and test green.
+### 2026-10-25 H-2 security audit (R1)
+
+Checked and changed:
+- Secrets: no .env, key, or database file is tracked (git ls-files); no .env in history (git log --all -- .env); no key-shaped strings matched in tracked files; .env.example holds placeholders only and ADMIN_RESET_TOKEN now defaults to empty (route disabled).
+- Injection and input: every route validates with zod; JSON bodies are capped at 100kb; webhook raw bodies at 1mb; malformed JSON returns 400; the error handler maps unknown failures to 500 internal_error and never prints stack traces or PayPal messages.
+- Webhook trust: signature verification runs on the exact raw bytes before parsing or writing; tampered signatures return 400 with zero writes (tests cover balance, transaction, and event counts); replays are deduped by event id.
+- Privacy: free text (custom_id, notes), payer name, and payer email are never read into storage; only an 8-char SHA-256 counterparty hash is kept; an H-2 test asserts the stored dataset contains neither the email nor the custom_id.
+- Admin reset: constant-time SHA-256 digest compare via timingSafeEqual; empty config disables the route (404); missing or wrong token returns 401 and never calls reset.
+- CORS: exact-match origin from WEB_ORIGIN, no wildcard, no credentials; preflight allow-headers are Content-Type only.
+- Headers: x-powered-by disabled; X-Content-Type-Options nosniff; Referrer-Policy no-referrer; X-Frame-Options DENY; Cache-Control no-store (SSE overrides with no-cache, no-transform).
+- Dependencies: pnpm audit went from 30 advisories (3 critical, 12 high) to 1 high. Upgraded next 14.2.35 to 15.5.28 and react/react-dom 18 to 19 (apps/web was still a stub; build and typecheck pass). Pinned postcss to 8.5.31 via a pnpm override to clear four postcss findings in next's pinned 8.4.31.
+- No secrets are logged; the only console output is the listen address.
+
+Residual risks accepted for the demo:
+- zod 3.24.4 has GHSA high severity for memory exhaustion on oversized constrained collections; patched only in zod 4.6.6, which is a breaking upgrade for @surplus/contracts (R3). Mitigation: 100kb JSON cap plus request schemas that accept no unbounded arrays. Revisit after the hackathon.
+- /api/webhooks/paypal performs a signature verification call before it can know whether the sender is honest; an attacker can force verification work. Accepted because Render has no WAF and the endpoint must verify first. If it is abused, add a per-IP token bucket at the edge.
+- No rate limit on POST /api/plan or /api/advisor; bodies are capped and the engine is pure, but an LLM call can be expensive. Add per-IP limits if public beyond the demo.
+
+Requests to other owners:
+- R5: apps/web now runs Next 15 + React 19. Use React 19 types; do not pin back. next/image is patched in 15.5.28.
+- R3: consider zod 4.6.6+ after the hackathon to close the remaining advisory; the request schemas are R3-owned.
+### 2026-10-25 H-2 follow-up: live seed correctness (R1)
+
+- Found during the audit: C-12's seed adapter copied the fixture dataset into live_sandbox, so a fresh API could show a fake transaction and fixture balance for the live merchant before any real payment.
+- seedOnBoot now seeds live_sandbox with EMPTY_LIVE_DATASET (zero transactions, zero balance, PAYPAL_REPORTING balance source is NOT claimed; the value is LIVE_WEBHOOK_ADJUSTED). Fixture personas keep using the example loader.
+- Admin reset restores the same empty live state and clears applied event ids.
+- Tests: seed.test.ts asserts an empty live start and idempotent reset; an app test serves summary, surplus and plan for an empty live merchant. 48 API tests pass.
+- TODO(R2): replace EMPTY_LIVE_DATASET with the real PayPal reporting balance snapshot when getMerchantDataset lands.
+

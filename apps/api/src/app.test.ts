@@ -228,4 +228,43 @@ describe("misc", () => {
     const denied = await request(app).get("/api/health").set("Origin", "http://evil.example");
     expect(denied.headers["access-control-allow-origin"]).toBeUndefined();
   });
+
+  it("sends hardened headers and hides the server banner", async () => {
+    const res = await request(app).get("/api/health");
+    expect(res.headers["x-powered-by"]).toBeUndefined();
+    expect(res.headers["x-content-type-options"]).toBe("nosniff");
+    expect(res.headers["referrer-policy"]).toBe("no-referrer");
+    expect(res.headers["x-frame-options"]).toBe("DENY");
+    expect(res.headers["cache-control"]).toBe("no-store");
+  });
+});
+
+describe("live merchant with no events yet", () => {
+  it("serves summary, surplus and plan without throwing", async () => {
+    const emptyLive: MerchantDataset = {
+      transactions: [],
+      availableBalanceCents: 0,
+      balanceSource: "LIVE_WEBHOOK_ADJUSTED",
+      openDisputes: {
+        count: 0,
+        totalAmountCents: 0,
+        unheldAmountCents: 0,
+      },
+      excludedNonUsdCount: 0,
+    };
+    const liveApp = buildApp({ loadDataset: () => emptyLive });
+
+    const summary = await request(liveApp).get("/api/summary?merchantId=live_sandbox");
+    expect(summary.status).toBe(200);
+
+    const surplus = await request(liveApp).get("/api/surplus?merchantId=live_sandbox");
+    expect(surplus.status).toBe(200);
+
+    const plan = await request(liveApp).post("/api/plan").send({
+      merchantId: "live_sandbox",
+      monthlyObligationsCents: 0,
+      riskProfile: "BALANCED",
+    });
+    expect(plan.status).toBe(200);
+  });
 });
