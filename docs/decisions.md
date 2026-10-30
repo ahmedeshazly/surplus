@@ -36,7 +36,31 @@ _Pending._
 
 ## Engine decisions (R3)
 
-_Pending: window boundaries, executeAfterDays rule, band min/max under the CV shift, band-cents remainder rule._
+All entries below are Oct 24–25, 2026 (Africa/Cairo), R3, tasks K-4 / F-6 / F-7 / F-8 / H-7. Contracts v1.0 (`packages/contracts`) is frozen for the demo path: changing any type/field there after Gate 0 requires a synchronous engine + advisor update (append an addendum here first).
+
+**Calendar and windows (F-6).** All calendar math is UTC-only; "completed months" are UTC month buckets strictly before the month that contains `asOf`, and the in-progress month never enters the monthly model — its rows only move the available balance (append-only demo arithmetic). Window totals (week/month/year) are trailing half-open `[asOf − 7/30/365 days, asOf)`: boundaries inclusive at start, exclusive at `asOf`. The 90-day refund-rate window is anchored to the start of the current month (`[currentMonthStart − 90d, currentMonthStart)`), NOT to `asOf`, so a live payment during the in-progress month cannot distort the rate retroactively. The monthly series is the contiguous zero-filled span from the earliest to the latest month **with completed transactions** (inter-blank months are true zeros; a month with no data past that point cannot dilute the baseline with fabricated months).
+
+**Aggregation rules.** `grossIncomeCents` = Σ `grossCents` of `kind=income`; `feesCents` = Σ `feeCents` of ALL completed rows (not only income); `refundsCents`/`chargebacksCents` = Σ `grossCents` by kind; `withdrawalsCents` is tracked but never subtracted from the monthly net: `netCents = grossIncome − fees − refunds − chargebacks`. `transactionCount` counts aggregated COMPLETED USD rows; PENDING/REVERSED rows and non-USD rows are excluded (contracts lock rows to USD anyway — the loader normalizes upstream).
+
+**Volatility (cv, buffer).** cv = `round4(sampleStdDev / max(mean, baseline))` over the net series; M < 3 → cv exactly 0; mean ≤ 0 or baseline ≤ 0 → cv exactly 1 (guard, not error). `bufferMonths = round2(clamp(3 + 6×cv, 3, 9))`; `bufferTargetCents = round(bufferMonths × monthlyObligationsCents)`. cv > 1.0 is possible for tiny samples with outliers (std/mean of 3 points) — the 9-month clamp contains it; cv is asserted finite, in [0, ∞).
+
+**Degraded gates (F-7), in fixed order:** M < 3 → `INSUFFICIENT_DATA` (cv 0, buffer 9.00, target round(9×obligations), safe 0) → obligations ≤ 0 → `OBLIGATIONS_REQUIRED` (stats normal, bufferTarget 0, safe 0) → mean ≤ 0 or baseline ≤ 0 → `NEGATIVE_CASH_FLOW` (cv 1, buffer 9, target round(9×obligations), safe 0). Every status still emits the canonical 10 breakdown lines and a per-profile staging schedule (zeros when safe = 0); `stagingTrancheCount` stays 6/4/3 per profile even in degraded states.
+
+**Obligations resolution.** A supplied value wins (`USER_INPUT`). Otherwise `TRAILING_3M_WITHDRAWAL_AVG` = `round(Σ withdrawal grossCents across the last 3 series buckets ÷ 3)`; a zero default then triggers `OBLIGATIONS_REQUIRED` downstream instead of silently staging everything.
+
+**Safe surplus.** `safe = max(0, available − bufferTarget − unheldOpenDisputes − expectedRefundExposure)` where `exposure = round(refundRate90d × max(baseline, 0))` and `riskReserve = unheld + exposure`. `refundRate90d = round4(min(1, (refunds+chargebacks in 90d window) / max(grossIncome in window, 1)))`, with the previous months' rate bounded in [0, 1].
+
+**Staging (executeAfterDays rule).** Tranche count N = 6 (CONSERVATIVE) / 4 (BALANCED) / 3 (GROWTH). `base = floor(safe / N)` per tranche, remainder `safe − base×N` added to tranche 1 only (exact integer sum, tranche 1 ≥ the others). `executeAfterDays = (trancheNumber − 1) × 30` (monthly ladder, first tranche immediate).
+
+**Bands and the CV shift (F-8).** Base midpoints: CONSERVATIVE 50/35/15, BALANCED 30/30/40, GROWTH 15/20/65 (cash/bonds/equity). The shift applies when cv is **strictly greater** than 0.60 (cv = 0.6000 → no shift; 0.6001 → shift): cash min/max/target each +10 pts, equity target −10 (clamped at ≥ 0), bonds untouched; reasonCode `HIGH_VOLATILITY_CV_SHIFT` on cash and equity only, base codes elsewhere. Cents: bonds and equity get `round(pct × safe)`; CASH_MMF absorbs the remainder (`safe − bonds − equity`) — it is the mathematically chosen remainder-bearer because its exact float product can under-represent it; proved exact sum and cash ≥ 0.
+
+**Scenarios (F-8).** `incomeShockPct` scales ONLY `kind=income`, `status=COMPLETED` rows, with per-row `round(k × gross)` and `round(k × fee)` and net recomputed (`k = 1 + shock/100`); refunds, chargebacks, withdrawals and the dispute set are untouched. `stressedAvailable = max(0, available − delayedPayment − oneOffExpense)`. The stressed case re-runs the FULL chain (cv, buffer, rate, reserve, staging, bands) at the same `asOf`; consistency: merchantId and riskProfile must equal the base's, and if the base supplies obligations, the scenario's must match. Deltas: `round2(stressed − baseline)` for both safe and buffer.
+
+**Rounding conventions.** All money is non-negative integer cents; `round4` for ratios, `round2` for `bufferMonths`/`trendSlopeCentsPerMonth`. Math.round ties toward +infinity at the final round (−0.375 → −0.37 tie behavior is irrelevant because money inputs are non-negative); −0 is normalized to plain 0 so serialized JSON never contains "-0". Even-sample medians average the middle pair and round to integer cents (contract locks `SafeInt`).
+
+**Purity contract (lint-enforced).** `packages/engine` is forbidden `Date.now()`, zero-arg `new Date()`, `Math.random`, pseudorandom import, and any I/O/DB/LLM import. Every Date is derived from caller-passed ISO strings; the same input always produces deep-identical outputs (property-tested).
+
+**Cross-check lock (H-7).** `packages/contracts/src/examples.ts` freezes the Section-12 demo payloads; `packages/engine/src/golden.test.ts` rebuilds the exact demo dataset and asserts `computeCashFlowSummary`/`computeSurplus`/`computeAllocationPlan`/`runScenarioComparison` outputs deep-equal those payloads. Engine drift without re-freezing the examples fails CI — the two-way lock between contracts and engine. Persona snapshots (steady/volatile/seasonal/dispute) plus 1000+ fast-check runs cover profile × gate × schedule invariants; engine line coverage ≥ 99%.
 
 ## Open questions
 
