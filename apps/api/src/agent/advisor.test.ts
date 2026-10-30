@@ -6,7 +6,7 @@ import {
   exampleSurplusResult,
 } from "@surplus/contracts/examples";
 import { describe, expect, it, vi } from "vitest";
-import { runAdvisorTurn } from "./advisor.js";
+import { ADVISOR_ENV_KEYS, runAdvisorTurn } from "./advisor.js";
 import type { AdvisorDraftGenerator, RunAdvisorTurnInput } from "./advisor.js";
 import { buildDeterministicTemplateNarrative } from "./fallbackTemplate.js";
 
@@ -32,6 +32,13 @@ function groundedGenerator(): AdvisorDraftGenerator {
 }
 
 describe("runAdvisorTurn", () => {
+  it("uses the environment variable names standardized by the deployment config", () => {
+    expect(ADVISOR_ENV_KEYS).toEqual({
+      google: "GOOGLE_GENERATIVE_AI_API_KEY",
+      openai: "OPENAI_API_KEY",
+    });
+  });
+
   it("returns a schema-valid response after first-pass grounding", async () => {
     const result = await runAdvisorTurn(input, { generateDraft: groundedGenerator(), now });
     expect(AdvisorResponseSchema.parse(result)).toEqual(result);
