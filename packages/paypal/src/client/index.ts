@@ -9,6 +9,9 @@
 export { PaypalClient } from "./PaypalClient.js";
 export type { PayPalClientConfig, PayPalBalances, PayPalSafeDispute } from "./PaypalClient.js";
 
+export { PayPalOrdersClient, centsToDecimalString, decimalStringToCents } from "./orders.js";
+export type { PayPalOrder, PayPalCapture } from "./orders.js";
+
 // Export raw transaction search response so R2's normalizer can reference it.
 export type {
   PayPalTransactionSearchResponse,

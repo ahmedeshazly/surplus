@@ -200,7 +200,11 @@ export class PaypalClient {
   // Generic authenticated fetch with retry/backoff
   // ──────────────────────────────────────────────────────────────────────────
 
-  async #fetch<T>(
+  /**
+   * Authenticated request with the shared timeout and retry policy.
+   * `protected` so `PayPalOrdersClient` can reuse it without duplicating auth.
+   */
+  protected async request<T>(
     path: string,
     options?: { method?: string; body?: string; rawBody?: boolean },
   ): Promise<T> {
@@ -302,7 +306,7 @@ export class PaypalClient {
       fields: "all",
     });
 
-    return this.#fetch<PayPalTransactionSearchResponse>(`/v1/reporting/transactions?${params}`);
+    return this.request<PayPalTransactionSearchResponse>(`/v1/reporting/transactions?${params}`);
   }
 
   // ──────────────────────────────────────────────────────────────────────────
@@ -319,7 +323,7 @@ export class PaypalClient {
     const time = asOf ?? new Date().toISOString().replace(/\.\d{3}Z$/, "Z");
     const params = new URLSearchParams({ as_of_time: time, currency_code: "USD" });
 
-    const data = await this.#fetch<PayPalBalancesResponse>(`/v1/reporting/balances?${params}`);
+    const data = await this.request<PayPalBalancesResponse>(`/v1/reporting/balances?${params}`);
 
     // Find the primary USD balance
     const usd = data.balances?.find(
@@ -364,13 +368,13 @@ export class PaypalClient {
 
       let data: PayPalDisputesResponse;
       if (nextUrl) {
-        data = await this.#fetch<PayPalDisputesResponse>(nextUrl);
+        data = await this.request<PayPalDisputesResponse>(nextUrl);
       } else {
         const params = new URLSearchParams({
           dispute_state: states,
           page_size: String(Math.min(pageSize, 50)),
         });
-        data = await this.#fetch<PayPalDisputesResponse>(`/v1/customer/disputes?${params}`);
+        data = await this.request<PayPalDisputesResponse>(`/v1/customer/disputes?${params}`);
       }
 
       for (const item of data.items ?? []) {
@@ -444,7 +448,7 @@ export class PaypalClient {
 
     let data: PayPalVerifyWebhookSignatureResponse;
     try {
-      data = await this.#fetch<PayPalVerifyWebhookSignatureResponse>(
+      data = await this.request<PayPalVerifyWebhookSignatureResponse>(
         "/v1/notifications/verify-webhook-signature",
         { method: "POST", body: JSON.stringify(payload) },
       );
