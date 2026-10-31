@@ -176,22 +176,22 @@ _None yet._
 
 ### 2026-10-25 F-9 API routes (R1)
 
-- Framework: **Express 4** for pps/api (rationale already recorded under F-1: raw-body handling for the webhook route).
+- Framework: **Express 4** for apps/api (rationale already recorded under F-1: raw-body handling for the webhook route).
 - Route set: GET /api/health, GET /api/summary, GET /api/surplus, POST /api/plan, POST /api/scenario, GET /api/transactions, POST /api/advisor.
 - Money never leaves @surplus/contracts/@surplus/engine: routes pass integer cents through untouched and contain zero arithmetic.
-- Request wrappers (pps/api/src/routes/schemas.ts) re-use contracts enums only. **Request to R3:** consider absorbing MerchantQuerySchema, SurplusQuerySchema, PlanRequestSchema, ScenarioRequestSchema into contracts.
+- Request wrappers (apps/api/src/routes/schemas.ts) re-use contracts enums only. **Request to R3:** consider absorbing MerchantQuerySchema, SurplusQuerySchema, PlanRequestSchema, ScenarioRequestSchema into contracts.
 - **asOf anchor (request to R2 and R3 to confirm):** fixture personas use DEMO_AS_OF = 2026-10-01T00:00:00Z for reproducible golden values; live_sandbox uses 
-ew Date().toISOString(). Implemented in pps/api/src/routes/dataset.ts.
-- **Temporary stubs:** (1) pps/api/src/routes/dataset.ts returns the contracts example payload until R2 exposes getMerchantDataset(merchantId) in packages/paypal/src/sources; the loader is injected through uildApp(), so the swap is one line. (2) POST /api/advisor returns a FALLBACK_TEMPLATE AdvisorResponse until R4's unAdvisorTurn lands (injectable the same way). Both are marked TEMPORARY in code.
-- Tests: 20 supertest cases (200 valid / 400 invalid per route, 404, malformed JSON, CORS restriction). pnpm -r build and pnpm -r test green.
+new Date().toISOString(). Implemented in apps/api/src/routes/dataset.ts.
+- **Temporary stubs:** (1) apps/api/src/routes/dataset.ts returns the contracts example payload until R2 exposes getMerchantDataset(merchantId) in packages/paypal/src/sources; the loader is injected through buildApp(), so the swap is one line. (2) POST /api/advisor returns a FALLBACK_TEMPLATE AdvisorResponse until R4's runAdvisorTurn lands (injectable the same way). Both are marked TEMPORARY in code.
+- Tests: supertest cases cover 200 valid / 400 invalid per route, 404, malformed JSON and CORS restriction. `pnpm -r build` and `pnpm -r test` are green.
 
 ### Requests to other owners
 
 - **R2:** export MerchantDataset + getMerchantDataset(merchantId) from packages/paypal/src/sources (shape used: transactions, availableBalanceCents, balanceSource, openDisputes, excludedNonUsdCount).
-- **R3:** confirm the fixture sOf anchor; optionally adopt the request schemas into @surplus/contracts.
-- **R4:** export unAdvisorTurn from pps/api/src/agent with the injectable shape used here.
+- **R3:** confirm the fixture asOf anchor; optionally adopt the request schemas into @surplus/contracts.
+- **R4:** export runAdvisorTurn from apps/api/src/agent with the injectable shape used here.
 
-### R1 decisions and spike log (K-3, S-1, S-4, F-1, C-12, H-2 draft)
+### R1 decisions and spike log (K-3, S-1, S-4, F-1, C-12, H-2)
 ### 2026-10-25 K-3 - Sandbox token check (R1)
 
 Script: `packages/paypal/src/scripts/testToken.ts`.
@@ -298,9 +298,10 @@ read the exact bytes before any parsing. Fastify's `addContentTypeParser` achiev
 the same but with more ceremony; the Express approach is more readable for the team.
 Recorded here as the official framework choice.
 
-**Token cache:** Single in-flight refresh using a pending-promise guard. After a 401
-the cache is invalidated and a single retry occurs; repeated 401s surface as
-`PayPalError("OAUTH_FAILED")`.
+**Token cache:** Single in-flight refresh using a pending-promise guard. Tokens are
+cached until 5 minutes before their stated expiry. A protected-request 401 does not
+invalidate the cache in this version; it surfaces as `PayPalError("HTTP_ERROR")`.
+A failed OAuth token call surfaces as `PayPalError("OAUTH_FAILED")`.
 
 **31-day window guard:** `searchTransactions` throws `PayPalError("WINDOW_TOO_LARGE")`
 if `endDate - startDate > 31 days`. R2's windowed loader calls this in 31-day chunks.
@@ -316,26 +317,29 @@ R2's normalizer applies a second strip as defense in depth.
 **Dispute fields returned:** `disputeId`, `status`, `disputeAmount` (currency + value),
 `createTime` only. All other fields including `messages`, `dispute_note` are absent.
 
+**Request origin guard:** relative paths and absolute pagination links are resolved
+against the configured `baseUrl`. Requests outside that origin, or URLs with embedded
+credentials, throw `PayPalError("UNTRUSTED_ORIGIN")` before the bearer token is sent.
+
 ### 2026-10-25 F-9 - API routes decisions (R1)
 
 Framework: **Express** (see F-1 decision above).
 
 **asOf anchoring:**
-- Fixture personas (`persona_*`): anchor `asOf` to `"2026-10-24T21:00:00Z"` (Gate 0
-  timestamp). This makes golden test values reproducible regardless of when the server
-  runs. Decision flagged for R2 and R3 to confirm; recorded under "Requests to other
-  owners" in the F-9 PR.
+- Fixture personas (`persona_*`): anchor `asOf` to `DEMO_AS_OF` from
+  `@surplus/contracts/examples` (`"2026-10-01T00:00:00Z"`). This makes golden test
+  values reproducible regardless of when the server runs.
 - `live_sandbox`: use `new Date().toISOString()` (current time).
 
 **Requests to other owners:**
 - R2: confirm `getMerchantDataset(merchantId)` signature and return type
   `{ transactions, availableBalanceCents, balanceSource, openDisputes, excludedNonUsdCount }`.
-  Routes currently code against a stub in `apps/api/src/routes/stubs.ts`.
-- R3: confirm `computeCashFlowSummary`, `computeSurplus`, `computeAllocationPlan`,
-  `runScenarioComparison` function signatures and that they accept `asOf: string`.
-  Routes code against a stub until R3's package merges.
-- R3: confirm that the local thin Zod wrappers for query params
-  (`merchantIdSchema`, `scenarioInputSchema`) do not need to live in `@surplus/contracts`.
+  Routes use the temporary loader in `apps/api/src/routes/dataset.ts` until it lands.
+- R3: `computeCashFlowSummary`, `computeSurplus`, `computeAllocationPlan` and
+  `runScenarioComparison` are imported from `@surplus/engine`; confirm the signatures
+  and `asOf: string` contract stay stable.
+- R3: the local thin Zod wrappers live in `apps/api/src/routes/schemas.ts`; adopt them
+  into `@surplus/contracts` later if the API and web client need shared parsing.
 
 ### 2026-10-25 C-5 - Webhooks + SSE decisions (R1)
 
@@ -345,9 +349,9 @@ from live payments are lost. The live demo survives because judges do a fresh pa
 after each demo. If needed for the video, R1 can add the `persistentDisk` section to
 `render.yaml` (a human-only paid action, listed in the checklist).
 
-### 2026-10-25 H-2 - Security audit notes (R1, to be completed Nov 5-9)
+### 2026-10-25 H-2 - Security audit scope (R1)
 
-Findings to audit: secrets in git history (gitleaks), CORS origin lockdown,
+Findings audited: secrets in git history (gitleaks), CORS origin lockdown,
 admin reset endpoint constant-time compare, webhook signature verification before
 any DB write, Zod validation on all routes, log hygiene (no tokens, no free text,
 no payer PII in any log line).
@@ -357,11 +361,13 @@ no payer PII in any log line).
 - POST /api/webhooks/paypal is mounted before JSON parsing and uses express.raw; signature verification runs on the exact bytes before any store call.
 - Order enforced: verify -> parse -> dedupe by event id -> single atomic apply -> recompute -> broadcast -> 200. Unknown event types return 200 and write nothing; duplicates return 200 with no double count; invalid signatures return 400 with zero writes.
 - Live merchant: every webhook is attributed to live_sandbox (PayPal does not echo our merchant id). Recorded as a deliberate scope decision for the demo.
-- Event types handled: PAYMENT.CAPTURE.COMPLETED -> payment.received, PAYMENT.CAPTURE.REFUNDED (and PAYMENT.CAPTURE.REFUND) -> refund.processed. Each broadcasts the specific event plus a plan.updated event.
+- Event types handled: PAYMENT.CAPTURE.COMPLETED -> payment.received, PAYMENT.CAPTURE.REFUNDED (and the legacy PAYMENT.CAPTURE.REFUND alias) -> refund.processed. Each broadcasts the specific event plus a plan.updated event.
+- Only USD, COMPLETED money movement is applied. Non-USD events are counted once in `excludedNonUsdCount`; pending/failed/denied events are acknowledged without a write.
+- A refund never drives the cached balance below zero (clamped at the store boundary).
 - Free text is never read: custom_id, notes, memos and payer names are ignored. Payer email is SHA-256 hashed to 8 hex chars at the edge.
-- **TEMPORARY (request to R2):** apps/api/src/routes/webhookStore.ts provides an in-memory store and a minimal normalizer. Replace with R2's better-sqlite3 db + normalizer; the controller depends on the InMemoryWebhookStore interface, so the swap is local to server.ts.
+- **TEMPORARY (request to R2):** apps/api/src/routes/webhookStore.ts provides an in-memory store and a minimal normalizer. Replace it with R2's better-sqlite3 db + normalizer; the controller depends on the concrete `InMemoryWebhookStore` today, so the swap touches server.ts and the dependency type.
 - GET /api/events: text/event-stream, no-cache and no-transform, X-Accel-Buffering off, 15s heartbeat from SseHub.startHeartbeat, per-merchant subscribers, unsubscribe on req close.
-- Tests: 9 webhook tests (valid capture, raw-body verification, tampered signature with zero writes, duplicate id, refund, unknown type, missing headers, malformed amount) plus 9 SSE hub tests. 38 API tests total.
+- Tests: webhook coverage includes valid capture, raw-body verification, tampered signature with zero writes, duplicate id, refund, unknown type, missing headers, malformed amount, non-USD, non-COMPLETED and refund clamping; SseHub has 9 tests.
 ### 2026-10-25 C-12 Render deploy (R1)
 
 - render.yaml defines surplus-api and surplus-web (Node 20, free plan, oregon, healthCheckPath /api/health). Secrets use sync: false; PAYPAL_API_BASE is fixed to Sandbox.
@@ -379,13 +385,14 @@ Checked and changed:
 - Webhook trust: signature verification runs on the exact raw bytes before parsing or writing; tampered signatures return 400 with zero writes (tests cover balance, transaction, and event counts); replays are deduped by event id.
 - Privacy: free text (custom_id, notes), payer name, and payer email are never read into storage; only an 8-char SHA-256 counterparty hash is kept; an H-2 test asserts the stored dataset contains neither the email nor the custom_id.
 - Admin reset: constant-time SHA-256 digest compare via timingSafeEqual; empty config disables the route (404); missing or wrong token returns 401 and never calls reset.
-- CORS: exact-match origin from WEB_ORIGIN, no wildcard, no credentials; preflight allow-headers are Content-Type only.
+- CORS: exact-match origin from WEB_ORIGIN, no wildcard, no credentials; preflight allow-headers are `Content-Type` and `x-admin-reset-token`.
 - Headers: x-powered-by disabled; X-Content-Type-Options nosniff; Referrer-Policy no-referrer; X-Frame-Options DENY; Cache-Control no-store (SSE overrides with no-cache, no-transform).
-- Dependencies: pnpm audit went from 30 advisories (3 critical, 12 high) to 1 high. Upgraded next 14.2.35 to 15.5.28 and react/react-dom 18 to 19 (apps/web was still a stub; build and typecheck pass). Pinned postcss to 8.5.31 via a pnpm override to clear four postcss findings in next's pinned 8.4.31.
+- Dependencies: `pnpm audit --prod` currently reports 5 advisories: 2 high (`jsondiffpatch@0.6.0` prototype pollution via `ai@4.3.19`; `zod@3.25.76`), 1 moderate (`jsondiffpatch` XSS), and 2 low (`ai` filetype whitelist; `@ai-sdk/provider-utils` resource consumption). Next 15.5.28, React/react-dom 19.3.1 and the postcss 8.5.31 override are in place; the remaining advisories need coordinated breaking upgrades after the hackathon.
 - No secrets are logged; the only console output is the listen address.
 
 Residual risks accepted for the demo:
-- zod 3.24.4 has GHSA high severity for memory exhaustion on oversized constrained collections; patched only in zod 4.6.6, which is a breaking upgrade for @surplus/contracts (R3). Mitigation: 100kb JSON cap plus request schemas that accept no unbounded arrays. Revisit after the hackathon.
+- zod 3.25.76 has GHSA-mrhx-c7xc-m3w5 high severity for memory exhaustion on oversized constrained collections; patched only in zod 4.6.6, which is a breaking upgrade for @surplus/contracts (R3). Mitigation: 100kb JSON cap plus request schemas that accept no unbounded arrays. Revisit after the hackathon.
+- `ai@4.3.19` pulls `jsondiffpatch@0.6.0` (high prototype pollution; moderate XSS in its HTML formatter). Surplus does not apply untrusted JSON Patch deltas or render diff HTML, but the safe fix is `ai >= 5.0.52`, which is a breaking upgrade for R4's advisor. Revisit after the hackathon.
 - /api/webhooks/paypal performs a signature verification call before it can know whether the sender is honest; an attacker can force verification work. Accepted because Render has no WAF and the endpoint must verify first. If it is abused, add a per-IP token bucket at the edge.
 - No rate limit on POST /api/plan or /api/advisor; bodies are capped and the engine is pure, but an LLM call can be expensive. Add per-IP limits if public beyond the demo.
 
