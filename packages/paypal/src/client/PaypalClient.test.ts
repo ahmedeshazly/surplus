@@ -450,10 +450,10 @@ describe("PaypalClient – verifyWebhookSignature", () => {
   });
 
   it("returns false on network error during verification", async () => {
-    const client = new PaypalClient(defaultConfig());
+    const client = new PaypalClient({ ...defaultConfig(), maxAttempts: 1 });
     vi.spyOn(globalThis, "fetch")
       .mockResolvedValueOnce(makeTokenResponse())
-      .mockRejectedValueOnce(new Error("network failure"));
+      .mockRejectedValue(new Error("network failure"));
 
     const ok = await client.verifyWebhookSignature(sampleHeaders, rawBody, "WEBHOOK-ID-123");
     expect(ok).toBe(false);
