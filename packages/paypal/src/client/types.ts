@@ -155,3 +155,42 @@ export interface PayPalVerifyWebhookSignatureRequest {
 export interface PayPalVerifyWebhookSignatureResponse {
   verification_status: "SUCCESS" | "FAILURE";
 }
+
+// ---------------------------------------------------------------------------
+// Orders v2  (POST /v2/checkout/orders, POST /v2/checkout/orders/{id}/capture)
+// ---------------------------------------------------------------------------
+export interface PayPalOrderResponse {
+  id: string;
+  status?: string;
+  links?: Array<{ href: string; rel: string; method: string }>;
+}
+
+export interface PayPalOrderAmount {
+  currency_code: string;
+  value: string; // decimal string, e.g. "1200.00"
+}
+
+export interface PayPalCaptureItem {
+  id: string;
+  status: string;
+  amount?: PayPalOrderAmount;
+  create_time?: string;
+  seller_receivable_breakdown?: {
+    gross_amount?: PayPalOrderAmount;
+    paypal_fee?: PayPalOrderAmount;
+    net_amount?: PayPalOrderAmount;
+  };
+}
+
+export interface PayPalCaptureResponse {
+  id: string;
+  status: string;
+  payer?: {
+    email_address?: string; // PII – hashed immediately in PayPalOrdersClient, never stored
+  };
+  purchase_units?: Array<{
+    payments?: {
+      captures?: PayPalCaptureItem[];
+    };
+  }>;
+}
