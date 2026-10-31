@@ -12,6 +12,8 @@
     "spike:mcp": "tsx src/agent/spikes/s5_mcp.ts"
   },
   "dependencies": {
+    "@ai-sdk/google": "1.2.22",
+    "@ai-sdk/openai": "1.3.24",
     "@surplus/contracts": "workspace:*",
     "@surplus/engine": "workspace:*",
     "@surplus/paypal": "workspace:*",
