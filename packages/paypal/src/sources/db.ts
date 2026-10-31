@@ -1,18 +1,23 @@
 // Owner: R2 – SQLite schema and helper for PayPal source layer
 import Database from "better-sqlite3";
-import { resolve } from "path";
+import { isAbsolute, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
+
+const repoRoot = fileURLToPath(new URL("../../../../", import.meta.url));
+
+export function resolveDatabasePath(databasePath = process.env.DATABASE_PATH): string {
+  if (databasePath === ":memory:") return databasePath;
+  if (!databasePath) return resolve(repoRoot, "surplus.db");
+  return isAbsolute(databasePath) ? databasePath : resolve(repoRoot, databasePath);
+}
 
 /**
  * Returns a SQLite DB instance with WAL mode.
- * Uses `DATABASE_PATH` env var if set; otherwise falls back to a path
- * relative to the repository root. This works both in ESM (`type: "module"`)
- * and CommonJS contexts.
+ * `DATABASE_PATH` is resolved relative to the repository root, never the
+ * current working directory.
  */
 export function getDb(): Database.Database {
-  // Resolve a safe default when __dirname points inside the compiled package.
-  const defaultPath = resolve(process.cwd(), "surplus.db");
-  const dbPath = process.env.DATABASE_PATH ?? defaultPath;
-  const db = new Database(dbPath);
+  const db = new Database(resolveDatabasePath());
   db.pragma("journal_mode = WAL");
 
   // Idempotent table creation – ensures the DB schema matches the source of truth.
