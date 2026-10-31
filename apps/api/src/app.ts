@@ -74,7 +74,7 @@ function buildCors(webOrigin: string) {
     if (origin !== undefined && origin === webOrigin) {
       res.setHeader("Access-Control-Allow-Origin", webOrigin);
       res.setHeader("Vary", "Origin");
-      res.setHeader("Access-Control-Allow-Headers", "Content-Type");
+      res.setHeader("Access-Control-Allow-Headers", "Content-Type, x-admin-reset-token");
       res.setHeader("Access-Control-Allow-Methods", "GET,POST,OPTIONS");
     }
     if (req.method === "OPTIONS") {
