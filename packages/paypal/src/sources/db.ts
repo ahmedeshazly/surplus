@@ -4,14 +4,18 @@ import { resolve } from "path";
 
 /**
  * Returns a SQLite DB instance with WAL mode.
- * Path is taken from DATABASE_PATH env var (default: surplus.db).
+ * Uses `DATABASE_PATH` env var if set; otherwise falls back to a path
+ * relative to the repository root. This works both in ESM (`type: "module"`)
+ * and CommonJS contexts.
  */
 export function getDb(): Database.Database {
-  const dbPath = process.env.DATABASE_PATH ?? resolve(__dirname, "../../../surplus.db");
+  // Resolve a safe default when __dirname points inside the compiled package.
+  const defaultPath = resolve(process.cwd(), "surplus.db");
+  const dbPath = process.env.DATABASE_PATH ?? defaultPath;
   const db = new Database(dbPath);
   db.pragma("journal_mode = WAL");
 
-  // Ensure tables exist – idempotent CREATE TABLE IF NOT EXISTS.
+  // Idempotent table creation – ensures the DB schema matches the source of truth.
   db.exec(`
     CREATE TABLE IF NOT EXISTS merchants (
       id TEXT PRIMARY KEY,
@@ -48,7 +52,7 @@ export function getDb(): Database.Database {
       eventId TEXT PRIMARY KEY,
       merchantId TEXT NOT NULL REFERENCES merchants(id),
       type TEXT NOT NULL,
-      payload TEXT NOT NULL,
+      payload TEXT NOT NULL, -- will store only sanitized JSON (no free‑text fields)
       receivedAt TEXT NOT NULL
     );
     CREATE TABLE IF NOT EXISTS cached_plans (
@@ -61,6 +65,9 @@ export function getDb(): Database.Database {
 }
 
 let shared: Database.Database | null = null;
+/**
+ * Cached singleton DB instance. Safe for multiple imports within the same process.
+ */
 export function sharedDb(): Database.Database {
   if (!shared) shared = getDb();
   return shared;
