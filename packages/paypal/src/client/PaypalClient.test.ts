@@ -397,6 +397,33 @@ describe("PaypalClient – listOpenDisputes", () => {
     expect(disputes[0]!.disputeId).toBe("DISP-001");
     expect(disputes[1]!.disputeId).toBe("DISP-002");
   });
+
+  it("refuses a next link outside the configured PayPal origin", async () => {
+    const client = new PaypalClient(defaultConfig());
+    const fetchMock = vi
+      .spyOn(globalThis, "fetch")
+      .mockResolvedValueOnce(makeTokenResponse())
+      .mockResolvedValueOnce(
+        makeJsonResponse({
+          items: [],
+          links: [
+            {
+              href: "https://attacker.example/v1/customer/disputes?page_token=STOLEN",
+              rel: "next",
+              method: "GET",
+            },
+          ],
+        }),
+      );
+
+    await expect(client.listOpenDisputes()).rejects.toMatchObject({
+      code: "UNTRUSTED_ORIGIN",
+    });
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(fetchMock.mock.calls.every(([url]) => !String(url).includes("attacker.example"))).toBe(
+      true,
+    );
+  });
 });
 
 // ---------------------------------------------------------------------------
