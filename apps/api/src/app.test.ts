@@ -229,6 +229,17 @@ describe("misc", () => {
     expect(denied.headers["access-control-allow-origin"]).toBeUndefined();
   });
 
+  it("allows the admin reset header in CORS preflight", async () => {
+    const res = await request(app)
+      .options("/api/admin/reset")
+      .set("Origin", "http://localhost:3000")
+      .set("Access-Control-Request-Method", "POST")
+      .set("Access-Control-Request-Headers", "content-type, x-admin-reset-token");
+
+    expect(res.status).toBe(204);
+    expect(res.headers["access-control-allow-headers"]).toContain("x-admin-reset-token");
+  });
+
   it("sends hardened headers and hides the server banner", async () => {
     const res = await request(app).get("/api/health");
     expect(res.headers["x-powered-by"]).toBeUndefined();

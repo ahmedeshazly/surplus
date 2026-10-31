@@ -32,6 +32,8 @@
         "scripts/**",
         "apps/api/tsconfig.json",
         "apps/api/src/server.ts",
+        "apps/api/src/app.ts",
+        "apps/api/src/app.test.ts",
         "apps/api/src/routes/**",
         "packages/paypal/tsconfig.json",
         "packages/paypal/src/index.ts",
