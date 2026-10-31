@@ -12,7 +12,7 @@ import { PaypalClient } from "@surplus/paypal/src/client"; // real client implem
  */
 export async function loadTransactions(
   merchantId: MerchantId,
-  asOf: string
+  asOf: string,
 ): Promise<NormalizedTransaction[]> {
   const client: PaypalClient = new PaypalClient(); // assumes env vars are set
   const db = getDb();
@@ -90,9 +90,11 @@ export async function getMerchantDataset(merchantId: MerchantId) {
   const balanceRow = db
     .prepare(`SELECT availableCents, withheldCents, asOf FROM balances WHERE merchantId = ?`)
     .get(merchantId);
-  const openDisputeRows = db.prepare(`SELECT COUNT(*) AS count, SUM(amountCents) AS total FROM open_disputes WHERE merchantId = ?`).get(
-    merchantId
-  );
+  const openDisputeRows = db
+    .prepare(
+      `SELECT COUNT(*) AS count, SUM(amountCents) AS total FROM open_disputes WHERE merchantId = ?`,
+    )
+    .get(merchantId);
   const excludedNonUsdCount = transactions.filter((t) => t.currency !== "USD").length;
   return {
     transactions,
@@ -102,4 +104,3 @@ export async function getMerchantDataset(merchantId: MerchantId) {
     excludedNonUsdCount,
   };
 }
-
