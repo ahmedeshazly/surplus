@@ -118,6 +118,7 @@ export class PaypalClient {
   private readonly clientId: string;
   private readonly clientSecret: string;
   private readonly baseUrl: string;
+  private readonly baseOrigin: string;
   private readonly timeoutMs: number;
   private readonly maxAttempts: number;
 
@@ -130,6 +131,7 @@ export class PaypalClient {
     this.clientId = config.clientId;
     this.clientSecret = config.clientSecret;
     this.baseUrl = config.baseUrl.replace(/\/$/, ""); // strip trailing slash
+    this.baseOrigin = new URL(this.baseUrl).origin;
     this.timeoutMs = config.timeoutMs ?? DEFAULT_TIMEOUT_MS;
     this.maxAttempts = config.maxAttempts ?? BACKOFF_MAX_ATTEMPTS;
   }
@@ -201,6 +203,31 @@ export class PaypalClient {
   // ──────────────────────────────────────────────────────────────────────────
 
   /**
+   * Resolves a relative API path or an absolute pagination link, refusing to
+   * send the bearer token anywhere outside the configured PayPal origin.
+   */
+  #resolveRequestUrl(path: string): string {
+    let parsed: URL;
+    try {
+      parsed =
+        path.startsWith("/") && !path.startsWith("//")
+          ? new URL(`${this.baseUrl}${path}`)
+          : new URL(path);
+    } catch {
+      throw new PayPalError("HTTP_ERROR", "Invalid request URL");
+    }
+
+    if (parsed.origin !== this.baseOrigin || parsed.username !== "" || parsed.password !== "") {
+      throw new PayPalError(
+        "UNTRUSTED_ORIGIN",
+        "Refusing to send credentials outside the configured PayPal origin",
+      );
+    }
+
+    return parsed.toString();
+  }
+
+  /**
    * Authenticated request with the shared timeout and retry policy.
    * `protected` so `PayPalOrdersClient` can reuse it without duplicating auth.
    */
@@ -208,8 +235,8 @@ export class PaypalClient {
     path: string,
     options?: { method?: string; body?: string; rawBody?: boolean },
   ): Promise<T> {
+    const url = this.#resolveRequestUrl(path);
     const token = await this.getAccessToken();
-    const url = path.startsWith("http") ? path : `${this.baseUrl}${path}`;
 
     let lastError: PayPalError | null = null;
 

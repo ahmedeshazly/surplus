@@ -10,6 +10,7 @@ export type PayPalErrorCode =
   | "HTTP_ERROR"
   | "NETWORK_ERROR"
   | "PARSE_ERROR"
+  | "UNTRUSTED_ORIGIN"
   | "TIMEOUT"
   | "INVALID_AMOUNT";
 
