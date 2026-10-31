@@ -144,6 +144,36 @@ export function createWebhookHandler(deps: WebhookDeps): WebhookHandler {
     }
 
     const merchantId = LIVE_MERCHANT;
+    const isCapture = eventType === SUPPORTED_CAPTURE;
+    const isRefund = SUPPORTED_REFUNDS.has(eventType);
+    if (!isCapture && !isRefund) {
+      // Unknown or unsupported types are acknowledged and ignored (PayPal retries otherwise).
+      res.status(200).json({ status: "ignored" });
+      return;
+    }
+
+    const amount = asRecord(resource["amount"]);
+    const currency = asString(amount?.["currency_code"]);
+    const status = asString(resource["status"]);
+    if (amount === undefined || currency === undefined || status === undefined) {
+      badRequest(res, "invalid_event");
+      return;
+    }
+
+    // Only USD rows can enter the money model; keep a count for the UI instead.
+    if (currency !== "USD") {
+      deps.store.ignoreEvent({ eventId, merchantId, reason: "non_usd" });
+      res.status(200).json({ status: "ignored" });
+      return;
+    }
+
+    // Pending/failed/denied captures and refunds are not completed money movement.
+    if (status !== "COMPLETED") {
+      deps.store.ignoreEvent({ eventId, merchantId, reason: "not_completed" });
+      res.status(200).json({ status: "ignored" });
+      return;
+    }
+
     const occurredAt =
       asString(resource["create_time"]) ??
       asString(event?.["create_time"]) ??
@@ -154,10 +184,9 @@ export function createWebhookHandler(deps: WebhookDeps): WebhookHandler {
 
     let transaction;
     let appEventType: AppEvent["type"];
-    if (eventType === SUPPORTED_CAPTURE) {
+    if (isCapture) {
       const captureId = asString(resource["id"]);
-      const amount = asRecord(resource["amount"]);
-      const grossCents = decimalToCents(amount?.["value"]);
+      const grossCents = decimalToCents(amount["value"]);
       if (captureId === undefined || grossCents === undefined) {
         badRequest(res, "invalid_event");
         return;
@@ -174,10 +203,9 @@ export function createWebhookHandler(deps: WebhookDeps): WebhookHandler {
         payerEmailHash,
       });
       appEventType = "payment.received";
-    } else if (SUPPORTED_REFUNDS.has(eventType)) {
+    } else {
       const refundId = asString(resource["id"]);
-      const amount = asRecord(resource["amount"]);
-      const amountCents = decimalToCents(amount?.["value"]);
+      const amountCents = decimalToCents(amount["value"]);
       if (refundId === undefined || amountCents === undefined) {
         badRequest(res, "invalid_event");
         return;
@@ -190,10 +218,6 @@ export function createWebhookHandler(deps: WebhookDeps): WebhookHandler {
         payerEmailHash,
       });
       appEventType = "refund.processed";
-    } else {
-      // Unknown or unsupported types are acknowledged and ignored (PayPal retries otherwise).
-      res.status(200).json({ status: "ignored" });
-      return;
     }
 
     const applied = deps.store.applyEvent({

@@ -201,6 +201,81 @@ describe("POST /api/webhooks/paypal (TST-05)", () => {
     expect(res.status).toBe(400);
     expect(store.eventCount()).toBe(0);
   });
+
+  it("ignores non-USD captures, counts them once, and never applies them", async () => {
+    const { app, store, fake } = harness();
+    const beforeBalance = store.balanceCents(LIVE_MERCHANT);
+    const beforeTx = store.transactionCount(LIVE_MERCHANT);
+    const eurCapture = {
+      ...CAPTURE_EVENT,
+      id: "WH-EUR-1",
+      resource: {
+        ...CAPTURE_EVENT.resource,
+        id: "CAPTURE-EUR-1",
+        amount: { currency_code: "EUR", value: "1200.00" },
+      },
+    };
+
+    const first = await post(app, eurCapture);
+
+    expect(first.status).toBe(200);
+    expect(first.body.status).toBe("ignored");
+    expect(store.balanceCents(LIVE_MERCHANT)).toBe(beforeBalance);
+    expect(store.transactionCount(LIVE_MERCHANT)).toBe(beforeTx);
+    expect(store.getDataset(LIVE_MERCHANT)?.excludedNonUsdCount).toBe(1);
+    expect(store.eventCount()).toBe(1);
+    expect(fake.chunks).toHaveLength(1); // only the connected comment
+
+    const replay = await post(app, eurCapture);
+    expect(replay.status).toBe(200);
+    expect(replay.body.status).toBe("duplicate");
+    expect(store.getDataset(LIVE_MERCHANT)?.excludedNonUsdCount).toBe(1);
+    expect(store.eventCount()).toBe(1);
+  });
+
+  it("ignores captures that are not COMPLETED without writing money movement", async () => {
+    const { app, store, fake } = harness();
+    const beforeBalance = store.balanceCents(LIVE_MERCHANT);
+    const beforeTx = store.transactionCount(LIVE_MERCHANT);
+    const pending = {
+      ...CAPTURE_EVENT,
+      id: "WH-PENDING-1",
+      resource: {
+        ...CAPTURE_EVENT.resource,
+        id: "CAPTURE-PENDING-1",
+        status: "PENDING",
+      },
+    };
+
+    const res = await post(app, pending);
+
+    expect(res.status).toBe(200);
+    expect(res.body.status).toBe("ignored");
+    expect(store.balanceCents(LIVE_MERCHANT)).toBe(beforeBalance);
+    expect(store.transactionCount(LIVE_MERCHANT)).toBe(beforeTx);
+    expect(store.getDataset(LIVE_MERCHANT)?.excludedNonUsdCount).toBe(0);
+    expect(store.eventCount()).toBe(1);
+    expect(fake.chunks).toHaveLength(1);
+  });
+
+  it("never lets a refund drive the cached balance below zero", async () => {
+    const { app, store } = harness();
+    const hugeRefund = {
+      ...REFUND_EVENT,
+      id: "WH-REFUND-HUGE",
+      resource: {
+        ...REFUND_EVENT.resource,
+        id: "REFUND-HUGE",
+        amount: { currency_code: "USD", value: "999999999.99" },
+      },
+    };
+
+    const res = await post(app, hugeRefund);
+
+    expect(res.status).toBe(200);
+    expect(res.body.status).toBe("received");
+    expect(store.balanceCents(LIVE_MERCHANT)).toBe(0);
+  });
 });
 
 describe("GET /api/events", () => {
