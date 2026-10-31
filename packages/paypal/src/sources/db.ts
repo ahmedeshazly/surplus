@@ -69,6 +69,7 @@ let shared: Database.Database | null = null;
  * Cached singleton DB instance. Safe for multiple imports within the same process.
  */
 export function sharedDb(): Database.Database {
+  // tiny comment to trigger PR UI – no functional change
   if (!shared) shared = getDb();
   return shared;
 }
