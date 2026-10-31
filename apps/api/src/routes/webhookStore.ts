@@ -101,6 +101,14 @@ export interface ApplyEventInput {
   deltaNetCents: number;
 }
 
+export type IgnoreReason = "non_usd" | "not_completed";
+
+export interface IgnoreEventInput {
+  eventId: string;
+  merchantId: MerchantId;
+  reason: IgnoreReason;
+}
+
 /**
  * TEMPORARY in-memory store. TODO(R2): replace with better-sqlite3 WAL tables.
  * `applyEvent` is atomic by construction (single synchronous mutation), matching
@@ -134,8 +142,22 @@ export class InMemoryWebhookStore {
     if (state.eventIds.has(input.eventId)) return false;
     state.eventIds.add(input.eventId);
     state.transactions.push(input.transaction);
-    state.availableBalanceCents = state.availableBalanceCents + input.deltaNetCents;
+    state.availableBalanceCents = Math.max(0, state.availableBalanceCents + input.deltaNetCents);
     state.balanceSource = "LIVE_WEBHOOK_ADJUSTED";
+    return true;
+  }
+
+  /**
+   * Records an event that was acknowledged but deliberately not applied.
+   * Non-USD rows are surfaced through `excludedNonUsdCount`; replaying the
+   * same event must not increment it twice.
+   */
+  ignoreEvent(input: IgnoreEventInput): boolean {
+    const state = this.#merchants.get(input.merchantId);
+    if (state === undefined) return false;
+    if (state.eventIds.has(input.eventId)) return false;
+    state.eventIds.add(input.eventId);
+    if (input.reason === "non_usd") state.excludedNonUsdCount += 1;
     return true;
   }
 
